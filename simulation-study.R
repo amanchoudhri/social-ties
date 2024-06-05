@@ -10,12 +10,12 @@ invlogit <- function(x) {
   return(e_x / (1 + e_x))
 }
 
-simulate <- function(N) {
+simulate_data <- function(N) {
   # P_i, party_id. coded as -1 for D, 1 for R.
   party_id <- (2 * rbinom(N, 1, 0.5)) - 1
   
-  # let's say that people who are Republican answer local social
-  # partisanship according to the following distribution
+  # Let's say that people who are Republican answer according to the
+  # following distribution:
   #   All D (-2):        0.03
   #   Mostly D (-1):     0.07
   #   Roughly even (0):  0.1
@@ -40,55 +40,39 @@ simulate <- function(N) {
   # P(Y_i > -1) = invlogit(a + XB)
   # P(Y_i > 0) = invlogit(a + XB - c)
   
-  # Converting categorical predictors as appropriate, our simple model is thus:
-  # P(Y_i > -1) = invlogit(
-  #   a0 * 1(P_i = -1) +
-  #   a1 * 1(P_i = 1) +
-  #   b02 * 1(L_i = -2) + b01 * 1(L_i = -1)
-  #   b11 * 1(L_i = 1) + b12 * 1(L_i = 2)
-  # ),
-  # and P(Y_i > 0) similarly, with log-odds shifted by c. We don't include an
-  # intercept term here so we can have a0 and a1 individually.
+  # Additionally, we treat the categorical predictor L_i as a continuous
+  # variable, essentially meaning that we assume the "effect" on policy
+  # preferences is constant when comparing -1 to 0 or 0 to 1. This way,
+  # we only have one parameter whose significance we need to assess, simplifying
+  # the power analysis.
+  
+  # Our model is thus:
+  #    P(Y_i > -1) = invlogit(a0 * 1(P_i = -1) + a1 * 1(P_i = 1) + b * L_i),
+  #    P(Y_i > 0) = invlogit(a0 * 1(P_i = -1) + a1 * 1(P_i = 1) + b * L_i - c),
+  # We don't include an intercept term so we can have a0 and a1 individually.
   
   # Define our true parameter values
   
   # Coefficients for party ID in the regression
   a0 <- -2
-  a1 <- 3
+  a1 <- 4
   
-  
-  # Coefficients for local social in the regression
-  # Set the coefficient for "evenly split" to zero for identification
-  b02 <- -0.35 # All Democrat
-  b01 <- -0.2  # Mostly D
-  b11 <- 0.2   # Mostly R
-  b12 <- 0.35  # All R
+  # Coefficient for local social in the regression
+  b <- 0.5
   
   # Additional person-level variation not explained by party ID or local social
-  sigma <- 0.2
+  sigma <- 1
   eps <- rnorm(N, 0, sigma)
   
   # Cutoff parameter shifting log-odds for P(Y_i > 0)
-  d <- 1
+  c <- 2
   
   # Calculate the base log-odds, logit[ P(Y_i > -1) ]
-  log_odds <- (
-    ifelse(party_id == -1, a0, a1) +
-    ifelse(
-      local_social == 0,
-      0,
-      ifelse(
-        local_social < 0,
-        ifelse(local_social == -1, b01, b02),
-        ifelse(local_social == 1, b11, b12)
-       )
-    ) + 
-    eps
-  )
+  log_odds <- (ifelse(party_id == -1, a0, a1) + b * local_social + eps)
   
   # Calculate the actual probabilities of each outcome
   p1 <- invlogit(log_odds) # P(Y_i > -1)
-  p2 <- invlogit(log_odds - d) # P(Y_i > 0)
+  p2 <- invlogit(log_odds - c) # P(Y_i > 0)
   
   # We obtain the probabilities for specific outcome values as follows
   #   P(Y_i = -1) = 1 - P(Y_i > -1) = 1 - p1
@@ -109,13 +93,13 @@ simulate <- function(N) {
   result$pid <- ifelse(result$party_id == -1, "Democrat", "Republican")
   result$pid <- factor(result$pid, levels=c("Democrat", "Republican"))
   local_social_levels <- c("All D", "Mostly D", "Even", "Mostly R", "All R")
-  result$ls <- factor(local_social_levels[result$local_social + 3], levels=local_social_levels)
+  result$ls <- factor(
+    local_social_levels[result$local_social + 3],
+    levels=local_social_levels
+    )
   
   # change `y` to a factor for use in polr down the line
   result$y <- factor(result$y, levels=-1:1)
-  # relevel ls factor so that coefficients are computed relative to "Even",
-  # the 'middle' level
-  result$lsR <- relevel(result$ls, ref="Even")
   
   return(result)
 }
@@ -150,22 +134,81 @@ extract_coefs_categorical <- function (fit) {
   
   return(coefs)
 }
-fit_model <- function (N) {
-  r <- simulate(N)
+plot_simulation <- function(data) {
+  N <- nrow(data)
+  print(
+    ggplot(data, aes(x=pid)) +
+    geom_bar() +
+    ggtitle(paste0("Party Breakdown, N = ", N))
+    )
   
-  ggplot(r, aes(x=pid)) + geom_bar()
+  print(
+    ggplot(data, aes(x=ls)) +
+    geom_bar() +
+    ggtitle(paste0("Local Social Breakdown, N = ", N))
+    )
   
-  ggplot(r, aes(x=ls)) + geom_bar()
-  ggplot(r, aes(x=ls)) + geom_bar() + facet_grid(rows=vars(pid))
+  print(
+    ggplot(data, aes(x=ls)) +
+    geom_bar() +
+    facet_grid(rows=vars(pid)) +
+    ggtitle(paste0("Local Social Breakdown by Party ID, N = ", N))
+    )
   
   # probs
-  r %>% distinct(party_id, local_social, .keep_all=TRUE) %>%
+  data %>% distinct(party_id, local_social, .keep_all=TRUE) %>%
     arrange(party_id, local_social) %>%
     dplyr::select(-c(y, party_id, local_social)) %>%
     relocate(pid, ls)
   
-  ggplot(r, aes(x=y)) + geom_bar() + facet_grid(vars(pid), vars(ls))
+  print(
+    ggplot(data, aes(x=y)) +
+    geom_bar() +
+    facet_grid(vars(pid), vars(ls)) +
+    ggtitle(paste0("Policy Preference (Counts) by Party ID and Local Social, N = ", N))
+    )
   
-  model <- polr(y ~ pid + lsR, r, Hess=TRUE)
+  print(
+    ggplot(data, aes(x=y)) +
+    geom_bar(aes(y=..prop.., group=1)) +
+    facet_grid(vars(pid), vars(ls)) +
+    ggtitle(paste0("Policy Preference (Proportions) by Party ID and Local Social, N = ", N))
+    )
+}
+fit_model <- function (data) {
+  model <- polr(y ~ pid + local_social, data, Hess=TRUE)
   return(model)
 }
+
+run_sims <- function (n_iter, n_sample, alpha=0.05) {
+  ests <- rep(0, n_iter)
+  ses <- rep(0, n_iter)
+  signif <- rep(FALSE, n_iter)
+  
+  for (i in 1:n_iter) {
+    data <- simulate_data(n_sample)
+    g <- fit_model(data)
+    
+    ests[i] <- as.numeric(g$coefficients["local_social"])
+    ses[i] <- sqrt(diag(vcov(g))["local_social"])
+    
+    ci <- suppressMessages(confint(g, level=1-alpha))
+    lower_gt_0 <- ci["local_social", 1] > 0
+    upper_lt_0 <- ci["local_social", 2] < 0
+    signif[i] <- lower_gt_0 || upper_lt_0
+  }
+  return(data.frame(cbind(ests, ses, signif)))
+}
+
+check_power <- function(n_iter, n_sample, alpha=0.05) {
+  result <- run_sims(n_iter=N_iter, n_sample=N)
+  return(mean(result$signif))
+}
+
+data <- simulate_data(10000)
+plot_simulation(data)
+display(fit_model(data))
+
+N_iter <- 1000
+N <- 400
+print(paste0("Power, N = ", N, ": ", check_power(N_iter, N)))
