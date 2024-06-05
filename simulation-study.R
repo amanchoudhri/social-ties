@@ -3,6 +3,7 @@ library(ggplot2)
 library(MASS)
 library(patchwork)
 library(arm)
+library(tidyr)
 
 # Helper function to create model parameters intuitively
 make_params <- function(p_dem, p_rep, p_counter_dem, c, sigma=0) {
@@ -214,12 +215,58 @@ check_power <- function(n_iter, n_sample, params, alpha=0.05) {
   return(mean(result$signif))
 }
 
+explore_c <- function(p_dem, p_rep, p_counter_dem, c_vals) {
+  party_id <- rep(c(0, 1), each=3)
+  local_social <- rep(0:2, times=2)
+  
+  plots <- list()
+  
+  for (i in 1:length(c_vals)){
+    c <- c_vals[i]
+    params <- make_params(p_dem, p_rep, p_counter_dem, c)
+    p <- probs(party_id, local_social, params)
+    p <- add_helper_columns(data.frame(cbind(party_id, local_social, p)))
+    # Transform to long format
+    p_long <- p %>%
+      pivot_longer(
+        cols = c(p0, p1, p2),
+        names_to = "y",
+        names_prefix="p",
+        values_to = "p"
+      )
+    
+    plots[[i]] <- ggplot(p_long, aes(x=y, y=p)) +
+      geom_col() +
+      facet_grid(vars(pid), vars(ls)) +
+      ggtitle(paste0("Effect size: c = ", c))
+  }
+  combined_plot <- wrap_plots(plots) + plot_annotation(
+    title = "Policy Preference Probabilities",
+    subtitle = paste0(
+      "p_dem = ", p_dem,
+      "; p_rep = ", p_rep,
+      "; p_counter_dem = ", p_counter_dem
+      )
+    )
+  
+  filename <- paste0("effect_sizes_", p_dem, "_", p_rep, "_", p_counter_dem, ".png")
+  ggsave(paste0("img/", filename), plot=combined_plot)
+  return(combined_plot)
+}
+
+# Get a sense for what effect sizes might make sense, for
+# reasonable choices of p_dem, p_rep, p_counter_dem
+
 # p that a democrat with mostly dem friends has a dem view
 p_dem <- 0.75 
 # p that a republican with mostly rep friends has rep view
 p_rep <- 0.8 
 # p that a dem with mostly dem friends has a rep view
 p_counter_dem <- 0.05
+
+c_vals <- c(0.2, 0.4, 0.6, 0.8)
+explore_c(p_dem, p_rep, p_counter_dem, c_vals)
+
 
 # "effect" size. higher c means it's more likely that people with
 # counter-partisan friends will have counter-partisan views
