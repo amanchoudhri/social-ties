@@ -16,16 +16,14 @@ simulate_data <- function(N) {
   
   # Let's say that people who are Republican answer according to the
   # following distribution:
-  #   All D (-2):        0.03
-  #   Mostly D (-1):     0.07
-  #   Roughly even (0):  0.1
-  #   Mostly R (1):      0.5
-  #   All R (2):         0.3
+  #   Mostly D (-1):     0.1
+  #   Roughly even (0):  0.15
+  #   Mostly R (1):      0.75
   # and assume the exact reverse for Democrats
   
   # L_i, local social partisanship
-  ls_probs <- c(0.03, 0.07, 0.1, 0.5, 0.3)
-  local_social <- sample(seq(-2, 2), N, replace=TRUE, prob=ls_probs)
+  ls_probs <- c(0.1, 0.15, 0.75)
+  local_social <- sample(seq(-1, 1), N, replace=TRUE, prob=ls_probs)
   
   # multiply by -1 if Democrat to flip the probabilities
   local_social <- local_social * party_id
@@ -54,15 +52,15 @@ simulate_data <- function(N) {
   # Define our true parameter values
   
   # Coefficients for party ID in the regression
-  a0 <- -2
-  a1 <- 4
+  a0 <- -0.5
+  a1 <- 2.5
   
   # Coefficient for local social in the regression
-  b <- 0.5
+  b <- 0.3
   
   # Additional person-level variation not explained by party ID or local social
-  sigma <- 1
-  eps <- rnorm(N, 0, sigma)
+  sigma <- 0.5
+  eps <- rlogis(N, 0, sigma)
   
   # Cutoff parameter shifting log-odds for P(Y_i > 0)
   c <- 2
@@ -92,9 +90,9 @@ simulate_data <- function(N) {
   # Create some nice helper columns
   result$pid <- ifelse(result$party_id == -1, "Democrat", "Republican")
   result$pid <- factor(result$pid, levels=c("Democrat", "Republican"))
-  local_social_levels <- c("All D", "Mostly D", "Even", "Mostly R", "All R")
+  local_social_levels <- c("Mostly D", "Even", "Mostly R")
   result$ls <- factor(
-    local_social_levels[result$local_social + 3],
+    local_social_levels[result$local_social + 2],
     levels=local_social_levels
     )
   
@@ -163,6 +161,13 @@ plot_simulation <- function(data) {
   
   print(
     ggplot(data, aes(x=y)) +
+    geom_bar(aes(y=..prop.., group=1)) +
+    facet_grid(vars(pid)) +
+    ggtitle(paste0("Policy Preference (Proportions) by Party ID, N = ", N))
+    )
+  
+  print(
+    ggplot(data, aes(x=y)) +
     geom_bar() +
     facet_grid(vars(pid), vars(ls)) +
     ggtitle(paste0("Policy Preference (Counts) by Party ID and Local Social, N = ", N))
@@ -201,7 +206,7 @@ run_sims <- function (n_iter, n_sample, alpha=0.05) {
 }
 
 check_power <- function(n_iter, n_sample, alpha=0.05) {
-  result <- run_sims(n_iter=N_iter, n_sample=N)
+  result <- run_sims(n_iter=N_iter, n_sample=N, alpha=alpha)
   return(mean(result$signif))
 }
 
@@ -210,5 +215,5 @@ plot_simulation(data)
 display(fit_model(data))
 
 N_iter <- 1000
-N <- 400
+N <- 300
 print(paste0("Power, N = ", N, ": ", check_power(N_iter, N)))
