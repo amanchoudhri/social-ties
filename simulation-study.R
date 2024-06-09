@@ -185,6 +185,7 @@ plot_simulation <- function(data) {
     ggtitle(paste0("Policy Preference (Proportions) by Party ID and Local Social, N = ", N))
     )
 }
+
 fit_model <- function (data) {
   model <- polr(y ~ party_id + local_social, data, Hess=TRUE)
   return(model)
@@ -211,7 +212,7 @@ run_sims <- function (n_iter, n_sample, params, alpha=0.05) {
 }
 
 check_power <- function(n_iter, n_sample, params, alpha=0.05) {
-  result <- run_sims(N_iter, N, params, alpha=alpha)
+  result <- run_sims(n_iter, n_sample, params, alpha=alpha)
   return(mean(result$signif))
 }
 
@@ -264,7 +265,7 @@ p_rep <- 0.8
 # p that a dem with mostly dem friends has a rep view
 p_counter_dem <- 0.05
 
-c_vals <- c(0.2, 0.4, 0.6, 0.8)
+c_vals <- c(0.05, 0.1, 0.2, 0.4, 0.6, 0.8)
 explore_c(p_dem, p_rep, p_counter_dem, c_vals)
 
 
@@ -282,5 +283,52 @@ plot_simulation(data)
 display(fit_model(data))
 
 N_iter <- 1000
-N <- 300
-print(paste0("Power, N = ", N, ": ", check_power(N_iter, N, params)))
+# N <- 300
+# print(paste0("Power, N = ", N, ": ", check_power(N_iter, N, params)))
+
+# Compute power curves
+N_vals <- c(100 * 2:10)
+powers <- matrix(0, nrow=length(N_vals), ncol=length(c_vals))
+for (i in 1:length(c_vals)) {
+  params <- make_params(p_dem, p_rep, p_counter_dem, c_vals[i], sigma)
+  for (j in 1:length(N_vals)){
+    powers[j, i] <- check_power(N_iter, N_vals[j], params)
+  }
+}
+
+powers <- data.frame(N=N_vals, powers)
+colnames(powers) <- c("N", paste0("c", c_vals))
+powers_long <- powers %>%
+  pivot_longer(
+    cols = starts_with("c"),
+    names_to = "effect_size",
+    names_prefix = "c",
+    values_to = "value"
+  )
+
+# Create the line plot
+effect_plot <- ggplot(powers_long, aes(x = N, y = value, color = effect_size, group = effect_size)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "N", y = "Power", color = "Effect Size") +
+  ggtitle("Power by Sample Size, Effect Size") +
+  theme_minimal()
+
+print(effect_plot)
+
+ggsave('img/effects.png', effect_plot)
+
+# Create the faceted line plot with custom facet labels
+effect_facetted <- ggplot(powers_long, aes(x = N, y = value)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "N", y = "Power") +
+  facet_wrap(
+    ~ effect_size,
+    labeller = as_labeller(function(x) paste("Effect Size:", x))
+    ) +
+  ggtitle("Power by Sample Size, Effect Size") +
+  theme_minimal()
+
+print(effect_facetted)
+ggsave('img/effects_facetted.png', effect_facetted)
