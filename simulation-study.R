@@ -5,6 +5,8 @@ library(patchwork)
 library(arm)
 library(tidyr)
 
+setwd("C:/Users/Jared/Desktop/Gelman/social-ties")
+
 # Helper function to create model parameters intuitively
 make_params <- function(p_dem, p_rep, p_counter_dem, c, sigma=0) {
   # `p_dem`: desired P(Y_i = 0 | P_i = 0, L_i = 0), which is the probability that a
@@ -65,7 +67,7 @@ probs <- function(party_id, local_social, params, noise=0) {
 add_helper_columns <- function(df) {
   # `df`: data.frame containing columns `party_id`, `local_social`
   party_names <- c("Democrat", "Republican")
-  local_social_levels <- c("Mostly Co-Partisan", "Even", "Mostly Counter-Partisan")
+  local_social_levels <- c("Co-Partisan Local", "Even", "Counter-Partisan Local")
   
   pid <- factor(party_names[df$party_id + 1], levels=party_names)
   
@@ -236,22 +238,28 @@ explore_c <- function(p_dem, p_rep, p_counter_dem, c_vals) {
         values_to = "p"
       )
     
-    plots[[i]] <- ggplot(p_long, aes(x=y, y=p)) +
-      geom_col() +
-      facet_grid(vars(pid), vars(ls)) +
-      ggtitle(paste0("Effect size: c = ", c))
+    colors <- c("#619CFF","#F8766D","grey","grey", "#F8766D", "#619CFF","grey", "#F8766D", "#619CFF")
+    
+    plots[[i]] <- ggplot(p_long, aes(x=ls, y=p, fill = interaction(pid, y))) +
+      geom_bar(position="stack", stat="identity") +
+      facet_grid(vars(pid)) +
+      ggtitle(paste0("Effect size: c = ", c)) +
+      scale_fill_manual(values = colors)
   }
-  combined_plot <- wrap_plots(plots) + plot_annotation(
-    title = "Policy Preference Probabilities",
-    subtitle = paste0(
-      "p_dem = ", p_dem,
-      "; p_rep = ", p_rep,
-      "; p_counter_dem = ", p_counter_dem
-      )
+  combined_plot <- wrap_plots(plots) + 
+    plot_annotation(
+      title = "Policy Preference Probabilities",
+      subtitle = paste0(
+        "p_dem = ", p_dem,
+        "; p_rep = ", p_rep,
+        "; p_counter_dem = ", p_counter_dem
+      ) & theme(legend.position = "bottom") 
     )
   
-  filename <- paste0("effect_sizes_", p_dem, "_", p_rep, "_", p_counter_dem, ".png")
-  ggsave(paste0("img/", filename), plot=combined_plot)
+  combined_plot <- combined_plot + plot_layout(guides = "collect")
+  
+  filename <- paste0("effect_sizes_d", p_dem, "_r", p_rep, "_f", p_counter_dem, ".png")
+  ggsave(paste0("img/", filename), plot=combined_plot, width = 14, height = 10)
   return(combined_plot)
 }
 
@@ -259,13 +267,13 @@ explore_c <- function(p_dem, p_rep, p_counter_dem, c_vals) {
 # reasonable choices of p_dem, p_rep, p_counter_dem
 
 # p that a democrat with mostly dem friends has a dem view
-p_dem <- 0.75 
+p_dem <- 0.7
 # p that a republican with mostly rep friends has rep view
-p_rep <- 0.8 
+p_rep <- 0.9
 # p that a dem with mostly dem friends has a rep view
 p_counter_dem <- 0.05
 
-c_vals <- c(0.05, 0.1, 0.2, 0.4, 0.6, 0.8)
+c_vals <- c(0.0, 0.5, 1, 1.5, 2)
 explore_c(p_dem, p_rep, p_counter_dem, c_vals)
 
 
