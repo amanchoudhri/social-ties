@@ -1,0 +1,127 @@
+library(dplyr)
+library(forcats)
+
+RAW_DATA_FILENAME <- 'dat/RAW.rds'
+
+# LOAD DATA
+df <- readRDS(RAW_DATA_FILENAME)
+
+# CLEAN PARTY ID VARIABLE (pid3)
+# collapse "Other" to "Independent"
+df$pid3[df$pid3 == "Other"] <- "Independent"
+# throw out people who responded "Not sure"
+df <- df[df$pid3 != "Not sure",]
+# relevel the factor
+df$pid3 <- factor(df$pid3)
+df$pid3 <- fct_relevel(df$pid3, "Democrat", "Independent", "Republican")
+
+# REMOVE MISSING FRIEND_GROUP_PID3
+# (there's only 8 people who didn't answer)
+df <- df[!is.na(df$friend_group_pid3),]
+
+# CREATE FRIEND_GROUP_PID5 VARIABLE
+# This variable separates out those who don't have any friends of the opposing
+# party from those who do. Essentially we break up the "Mostly D" and "Mostly R"
+# categories based on respondents' answers to questions about whether they have
+# any friends of the opposing party.
+df$friend_group_pid5 <- df$friend_group_pid3
+df$friend_group_pid5 <- factor(df$friend_group_pid5, levels=c(
+  "All Democrats",
+  "Mostly Democrats",
+  "About evenly split",
+  "Mostly Republicans",
+  "All Republicans",
+  "Not sure"
+))
+# among those who are friends with "Mostly Democrats", change the covariate
+# value to "All Democrats" if `any_friends_republicans` is false.
+all_d <- df$friend_group_pid5 == "Mostly Democrats" & !(df$any_friends_republicans == "Yes")
+all_d[is.na(all_d)] <- FALSE
+df$friend_group_pid5[all_d] <- "All Democrats"
+all_r <- df$friend_group_pid5 == "Mostly Republicans" & !(df$any_friends_democrats == "Yes")
+all_r[is.na(all_r)] <- FALSE
+df$friend_group_pid5[all_r] <- "All Republicans"
+
+
+
+# DATA IMPUTATION
+
+# urbancity --
+# there's one person who didn't respond. they're in a zip code
+# with urban population: 37,974 and rural population: 6,230
+# (from https://www.city-data.com/zips/46360.html)
+# so just mark them as urban
+df$urbancity[is.na(df$urbancity)] <- "City"
+
+# SAVE DF
+processed <- df
+saveRDS(processed, 'dat/processed.rds')
+
+# STATE-LEVEL INFORMATION
+
+# Data source: The Cook Political Report
+# URL: https://cookpolitical.com/ratings/presidential-race-ratings
+# Note: Data manually transcribed on September 10, 2024
+
+cook_ratings <- tribble(
+  ~category, ~state, ~votes,
+  "Solid D", "California", 54,
+  "Solid D", "Colorado", 10,
+  "Solid D", "Connecticut", 7,
+  "Solid D", "Delaware", 3,
+  "Solid D", "Dist. of Columbia", 3,
+  "Solid D", "Hawaii", 4,
+  "Solid D", "Illinois", 19,
+  "Solid D", "Maine(01)", 1,
+  "Solid D", "Maryland", 10,
+  "Solid D", "Massachusetts", 11,
+  "Solid D", "New Jersey", 14,
+  "Solid D", "New York", 28,
+  "Solid D", "Oregon", 8,
+  "Solid D", "Rhode Island", 4,
+  "Solid D", "Vermont", 3,
+  "Solid D", "Washington", 12,
+  "Likely D", "Maine", 2,
+  "Likely D", "Minnesota", 10,
+  "Likely D", "New Hampshire", 4,
+  "Likely D", "New Mexico", 5,
+  "Likely D", "Virginia", 13,
+  "Lean D", "Nebraska(02)", 1,
+  "Toss Up", "Arizona", 11,
+  "Toss Up", "Georgia", 16,
+  "Toss Up", "Michigan", 15,
+  "Toss Up", "Nevada", 6,
+  "Toss Up", "North Carolina", 16,
+  "Toss Up", "Pennsylvania", 19,
+  "Toss Up", "Wisconsin", 10,
+  "Likely R", "Florida", 30,
+  "Likely R", "Maine(02)", 1,
+  "Likely R", "Texas", 40,
+  "Solid R", "Alabama", 9,
+  "Solid R", "Alaska", 3,
+  "Solid R", "Arkansas", 6,
+  "Solid R", "Idaho", 4,
+  "Solid R", "Indiana", 11,
+  "Solid R", "Iowa", 6,
+  "Solid R", "Kansas", 6,
+  "Solid R", "Kentucky", 8,
+  "Solid R", "Louisiana", 8,
+  "Solid R", "Mississippi", 6,
+  "Solid R", "Missouri", 10,
+  "Solid R", "Montana", 4,
+  "Solid R", "Nebraska", 2,
+  "Solid R", "Nebraska(01)", 1,
+  "Solid R", "Nebraska(03)", 1,
+  "Solid R", "North Dakota", 3,
+  "Solid R", "Ohio", 17,
+  "Solid R", "Oklahoma", 7,
+  "Solid R", "South Carolina", 9,
+  "Solid R", "South Dakota", 3,
+  "Solid R", "Tennessee", 11,
+  "Solid R", "Utah", 6,
+  "Solid R", "West Virginia", 4,
+  "Solid R", "Wyoming", 3
+)
+
+head(cook_ratings)
+write.csv(cook_ratings, "dat/cook_political_report_ratings.csv", row.names=FALSE)
