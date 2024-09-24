@@ -1,0 +1,230 @@
+---
+title: "Explore Correlations with Friend Group Party ID"
+author: "Aman Choudhri"
+date: "2024-09-09"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, echo=T, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(forcats)
+library(patchwork)
+```
+
+```{r}
+CLEANED_DATA_FILENAME <- 'dat/processed.rds'
+
+df <- readRDS(CLEANED_DATA_FILENAME)
+```
+
+```{r, echo=F}
+make_plot <- function(
+    data,
+    friend_group_var,
+    group_var1,
+    group_var2 = NULL
+    ) {
+  # Ensure friend_group_var is a string
+  friend_group_var <- as.character(friend_group_var)
+  
+  if (friend_group_var == "friend_group_pid3") {
+    colors <- c("blue", "purple", "red", "grey")
+  } else if (friend_group_var == "friend_group_pid5") {
+    colors <- c("blue", "lightblue", "purple", "pink", "red", "grey")
+  } else {
+    stop("friend_group_var must be either 'friend_group_pid3' or 'friend_group_pid5'")
+  }
+  
+  # Create the grouping expression
+  if (is.null(group_var2)) {
+    group_vars <- c(as.character(group_var1))
+    facet_formula <- as.formula(paste("~", quo_name(group_var1)))
+  } else {
+    group_vars <- c(as.character(group_var1), as.character(group_var2))
+    facet_formula <- as.formula(paste(quo_name(group_var2), "~", quo_name(group_var1)))
+  }
+  
+  # Prepare the data
+  plot_data <- data %>%
+    group_by(across(all_of(c(group_vars, friend_group_var)))) %>%
+    summarise(count = n(), .groups = "drop_last") %>%
+    mutate(proportion = count / sum(count))
+  
+  # Create the plot
+  p <- ggplot(plot_data, aes(y = !!sym(friend_group_var), x = proportion)) +
+    geom_bar(stat = "identity", aes(fill = !!sym(friend_group_var))) +
+    facet_grid(facet_formula) +
+    labs(
+        title = paste(
+          "Friend Group Party ID by",
+          group_var1,
+          if(!is.null(group_var2)) paste("and", group_var2)
+          ),
+         y = "Friend Group Party ID",
+         x = "Proportion",
+         fill = "Friend Group Party ID") +
+    scale_x_continuous(labels = scales::percent_format()) +
+    scale_y_discrete(limits = rev(levels(plot_data[[friend_group_var]]))) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Add color scale if colors are provided
+  if (!missing(colors)) {
+    p <- p + scale_fill_manual(values = colors)
+  }
+  
+  return(p)
+}
+```
+
+## By Personal Party ID
+Start by plotting self-reported friend group party ID (both 3 and 5-level
+representations) by a person's individual party ID. For more information on the
+`make_plot` function, see the appendix at the bottom.
+```{r}
+make_plot(df, 'friend_group_pid3', 'pid3')
+```
+```{r}
+make_plot(df, 'friend_group_pid5', 'pid3')
+```
+
+## By Urbanicity
+
+We'll repeat the same plot, now by urbanicity.
+
+```{r}
+make_plot(df, 'friend_group_pid3', 'urbancity')
+```
+```{r}
+make_plot(df, 'friend_group_pid5', 'urbancity')
+```
+
+## Personal Party ID and Urbanicity
+Now let's interact personal PID and urbanicity.
+
+```{r}
+make_plot(df, 'friend_group_pid3', 'pid3', 'urbancity')
+```
+
+```{r}
+make_plot(df, 'friend_group_pid5', 'pid3', 'urbancity')
+```
+
+## By State Partisan Leaning
+Let's create a rough analysis by state. Splitting states into D, R, and swing,
+we'll again display the proportions of friend group party ID. We'll
+use data from the Cook Political Report. To simplify the analysis, we won't
+consider the congressional districts in Maine and Nebraska separately. We mark
+Maine as D, and Nebraska as R.
+
+```{r}
+cook_ratings <- read.csv('dat/cook_political_report_ratings.csv')
+
+# remove maine and nebraska's congressional districts
+cook_ratings <- cook_ratings[cook_ratings$state %in% state.name,]
+
+# collapse "leans" and "likelies" down to hard D/R/Tossup
+cook_ratings <- cook_ratings %>%
+  mutate(
+    category = case_when(
+      str_detect(category, "D$") ~ "Democratic",
+      str_detect(category, "R$") ~ "Republican",
+      TRUE ~ "Tossup"
+    ) %>%
+      factor(levels = c("Democratic", "Tossup", "Republican"))
+  )
+
+# add into the df
+df_with_state_leaning <- merge(df, cook_ratings, by.x='inputstate', by.y='state')
+# rename column
+df_with_state_leaning$state_leaning <- df_with_state_leaning$category
+```
+
+First, just plot friend group PID by state leaning.
+```{r}
+make_plot(df_with_state_leaning, 'friend_group_pid3', 'state_leaning')
+```
+
+```{r}
+make_plot(df_with_state_leaning, 'friend_group_pid5', 'state_leaning')
+```
+
+Now repeat, facetting once more by individual PID as well.
+
+```{r}
+make_plot(df_with_state_leaning, 'friend_group_pid3', 'pid3', 'state_leaning')
+```
+
+```{r}
+make_plot(df_with_state_leaning, 'friend_group_pid5', 'pid3', 'state_leaning')
+```
+
+## Appendix
+```{r, eval=F}
+make_plot <- function(
+    data,
+    friend_group_var,
+    group_var1,
+    group_var2 = NULL
+    ) {
+  # Ensure friend_group_var is a string
+  friend_group_var <- as.character(friend_group_var)
+  
+  if (friend_group_var == "friend_group_pid3") {
+    colors <- c("blue", "purple", "red", "grey")
+  } else if (friend_group_var == "friend_group_pid5") {
+    colors <- c("blue", "lightblue", "purple", "pink", "red", "grey")
+  } else {
+    stop("friend_group_var must be either 'friend_group_pid3' or 'friend_group_pid5'")
+  }
+  
+  # Create the grouping expression
+  if (is.null(group_var2)) {
+    group_vars <- c(as.character(group_var1))
+    facet_formula <- as.formula(paste("~", quo_name(group_var1)))
+  } else {
+    group_vars <- c(as.character(group_var1), as.character(group_var2))
+    facet_formula <- as.formula(paste(quo_name(group_var2), "~", quo_name(group_var1)))
+  }
+  
+  # Prepare the data
+  plot_data <- data %>%
+    group_by(across(all_of(c(group_vars, friend_group_var)))) %>%
+    summarise(count = n(), .groups = "drop_last") %>%
+    mutate(proportion = count / sum(count))
+  
+  # Create the plot
+  p <- ggplot(plot_data, aes(y = !!sym(friend_group_var), x = proportion)) +
+    geom_bar(stat = "identity", aes(fill = !!sym(friend_group_var))) +
+    facet_grid(facet_formula) +
+    labs(
+        title = paste(
+          "Friend Group Party ID by",
+          group_var1,
+          if(!is.null(group_var2)) paste("and", group_var2)
+          ),
+         y = "Friend Group Party ID",
+         x = "Proportion",
+         fill = "Friend Group Party ID") +
+    scale_x_continuous(labels = scales::percent_format()) +
+    scale_y_discrete(limits = rev(levels(plot_data[[friend_group_var]]))) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Add color scale if colors are provided
+  if (!missing(colors)) {
+    p <- p + scale_fill_manual(values = colors)
+  }
+  
+  return(p)
+}
+```
