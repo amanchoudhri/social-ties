@@ -42,7 +42,29 @@ all_r <- df$friend_group_pid5 == "Mostly Republicans" & !(df$any_friends_democra
 all_r[is.na(all_r)] <- FALSE
 df$friend_group_pid5[all_r] <- "All Republicans"
 
+# CREATE COLLAPSED_PID VARIABLE
+# Collapse people who "lean Dem" or "lean Rep" into their respective parties
+df$collapsed_pid <- "Independent/Not sure"
+lean_dem <- as.numeric(df$pid7) < 4
+lean_rep <- as.numeric(df$pid7) > 4 & (df$pid7 != "Not sure")
+df$collapsed_pid[lean_dem] <- "Democrat"
+df$collapsed_pid[lean_rep] <- "Republican"
 
+df$collapsed_pid <- factor(df$collapsed_pid, levels=c(
+  "Democrat",
+  "Independent/Not sure",
+  "Republican"
+))
+
+
+# RENAME FRIEND_GROUP_CLASS FACTOR LEVELS
+df$friend_group_class <- fct_recode(df$friend_group_class,
+  "Friends much wealthier" = "Much wealthier",
+  "Friends slightly wealthier" = "Slightly wealthier",
+  "Friends the same" = "The same",
+  "Friends slightly poorer" = "Slightly poorer",
+  "Friends much poorer" = "Much poorer"
+)
 
 # DATA IMPUTATION
 
