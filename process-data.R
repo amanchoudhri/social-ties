@@ -6,7 +6,9 @@ RAW_DATA_FILENAME <- 'dat/RAW.rds'
 # LOAD DATA
 df <- readRDS(RAW_DATA_FILENAME)
 
-# CLEAN PARTY ID VARIABLE (pid3)
+# ----- CLEAN/PROCESS VARIABLES -----
+
+# PARTY ID (pid3)
 # collapse "Other" to "Independent"
 df$pid3[df$pid3 == "Other"] <- "Independent"
 # throw out people who responded "Not sure"
@@ -19,7 +21,19 @@ df$pid3 <- fct_relevel(df$pid3, "Democrat", "Independent", "Republican")
 # (there's only 8 people who didn't answer)
 df <- df[!is.na(df$friend_group_pid3),]
 
-# CREATE FRIEND_GROUP_PID5 VARIABLE
+# RENAME FRIEND_GROUP_CLASS FACTOR LEVELS
+df$friend_group_class <- fct_recode(df$friend_group_class,
+  "Friends much wealthier" = "Much wealthier",
+  "Friends slightly wealthier" = "Slightly wealthier",
+  "Friends the same" = "The same",
+  "Friends slightly poorer" = "Slightly poorer",
+  "Friends much poorer" = "Much poorer"
+)
+
+
+# ----- CREATE NEW VARIABLES -----
+
+# FRIEND_GROUP_PID5
 # This variable separates out those who don't have any friends of the opposing
 # party from those who do. Essentially we break up the "Mostly D" and "Mostly R"
 # categories based on respondents' answers to questions about whether they have
@@ -42,7 +56,7 @@ all_r <- df$friend_group_pid5 == "Mostly Republicans" & !(df$any_friends_democra
 all_r[is.na(all_r)] <- FALSE
 df$friend_group_pid5[all_r] <- "All Republicans"
 
-# CREATE COLLAPSED_PID VARIABLE
+# COLLAPSED_PID
 # Collapse people who "lean Dem" or "lean Rep" into their respective parties
 df$collapsed_pid <- "Independent/Not sure"
 lean_dem <- as.numeric(df$pid7) < 4
@@ -56,15 +70,35 @@ df$collapsed_pid <- factor(df$collapsed_pid, levels=c(
   "Republican"
 ))
 
-
-# RENAME FRIEND_GROUP_CLASS FACTOR LEVELS
-df$friend_group_class <- fct_recode(df$friend_group_class,
-  "Friends much wealthier" = "Much wealthier",
-  "Friends slightly wealthier" = "Slightly wealthier",
-  "Friends the same" = "The same",
-  "Friends slightly poorer" = "Slightly poorer",
-  "Friends much poorer" = "Much poorer"
+# FRIEND_GROUP_COPARTISANSHIP
+copartisanship_levels <- c(
+  "All co-partisan",
+  "Mostly co-partisan",
+  "About equal",
+  "Mostly counter-partisan",
+  "All counter-partisan",
+  "Not sure"
 )
+friend_group_partisan_levels <- head(levels(df$friend_group_pid5), -1)
+dem_levels <- c(friend_group_partisan_levels, "Not sure")
+rep_levels <- c(rev(friend_group_partisan_levels), "Not sure")
+# Create mappings for Democrats and Republicans
+dem_map <- setNames(copartisanship_levels, dem_levels)
+rep_map <- setNames(copartisanship_levels, rep_levels)
+
+# Create the new variable
+df$friend_group_copartisanship <- ifelse(
+  df$collapsed_pid == "Independent/Not sure", NA,
+       ifelse(df$collapsed_pid == "Democrat",
+              dem_map[as.character(df$friend_group_pid5)],
+              rep_map[as.character(df$friend_group_pid5)])
+)
+
+# Convert the new variable to a factor with the specified levels
+df$friend_group_copartisanship <- factor(df$friend_group_copartisanship, 
+                                         levels = copartisanship_levels)
+
+
 
 # DATA IMPUTATION
 

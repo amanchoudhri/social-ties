@@ -50,12 +50,19 @@ make_plot_base <- function(
   # Ensure categorical_plot_var is a string
   categorical_plot_var <- as.character(categorical_plot_var)
   
+  # Drop rows where categorical_plot_var is null
+  data <- data[!is.na(df[categorical_plot_var]),]
+  
+  five_level_partisan_colors <- c("blue", "lightblue", "purple", "pink", "red", "grey")
+  five_level_nonpartisan_colors <- c('#ffffcc','#a1dab4','#41b6c4','#2c7fb8','#253494', "grey")
+  
   color_palettes <- list(
     friend_group_pid3 = c("blue", "purple", "red", "grey"),
-    friend_group_pid5 = c("blue", "lightblue", "purple", "pink", "red", "grey"),
+    friend_group_pid5 = five_level_partisan_colors,
+    friend_group_copartisanship = five_level_nonpartisan_colors,
     # colors created using ColorBrewer 2.0
     # https://colorbrewer2.org/?type=sequential&scheme=YlGnBu&n=5
-    friend_group_class = c('#ffffcc','#a1dab4','#41b6c4','#2c7fb8','#253494', "grey")
+    friend_group_class = five_level_nonpartisan_colors
   )
   
   # Select the appropriate color palette
@@ -121,7 +128,7 @@ make_plot <- function (group_var1, group_var2=NULL) {
 Start by plotting ``r params$categorical_var`` by a person's individual party ID.
 
 ```{r}
-make_plot('pid3')
+make_plot('collapsed_pid')
 ```
 
 ## By Urbanicity
@@ -137,7 +144,7 @@ make_plot('urbancity')
 Now let's interact personal PID and urbanicity.
 
 ```{r}
-make_plot('pid3', 'urbancity')
+make_plot('collapsed_pid', 'urbancity')
 ```
 
 ## By State Partisan Leaning
@@ -180,7 +187,7 @@ make_plot('state_leaning')
 Now repeat, facetting once more by individual PID as well.
 
 ```{r}
-make_plot('pid3', 'state_leaning')
+make_plot('collapsed_pid', 'state_leaning')
 ```
 
 ## Appendix
