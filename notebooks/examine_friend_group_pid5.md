@@ -35,7 +35,7 @@ Start by plotting `friend_group_pid5` by a person’s individual party ID.
 make_plot('collapsed_pid')
 ```
 
-![](img/examine_friend_group_pid5/unnamed-chunk-3-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-3-1.png)<!-- -->
 
 ## By Urbanicity
 
@@ -45,7 +45,7 @@ We’ll repeat the same plot, now by urbanicity.
 make_plot('urbancity')
 ```
 
-![](img/examine_friend_group_pid5/unnamed-chunk-4-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-4-1.png)<!-- -->
 
 ## Personal Party ID and Urbanicity
 
@@ -55,7 +55,7 @@ Now let’s interact personal PID and urbanicity.
 make_plot('collapsed_pid', 'urbancity')
 ```
 
-![](img/examine_friend_group_pid5/unnamed-chunk-5-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-5-1.png)<!-- -->
 
 ## By State Partisan Leaning
 
@@ -94,7 +94,7 @@ First, just plot friend group PID by state leaning.
 make_plot('state_leaning')
 ```
 
-![](img/examine_friend_group_pid5/unnamed-chunk-7-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-7-1.png)<!-- -->
 
 Now repeat, facetting once more by individual PID as well.
 
@@ -102,7 +102,7 @@ Now repeat, facetting once more by individual PID as well.
 make_plot('collapsed_pid', 'state_leaning')
 ```
 
-![](img/examine_friend_group_pid5/unnamed-chunk-8-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-8-1.png)<!-- -->
 
 ## Appendix
 

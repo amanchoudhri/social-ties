@@ -6,10 +6,17 @@ params:
     value: 'friend_group_pid5'
   cat_var_display_name:
     value: 'Friend Group Party ID'
+  img_dir:
+    value: 'img/friend_group_pid5/'
+  base_dir:
+    value: '/Users/amanchoudhri/aman/penumbra/notebooks/'
+  output_mode:
+    value: 'pdf'
 output:
   pdf_document: 
     fig_height: 5
-  html_document: default
+  github_document:
+    html_preview: false
 title: "Explore Correlations with `r params$cat_var_display_name`"
 editor_options: 
   markdown:
@@ -18,6 +25,14 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+if (params$output_mode == 'github') {
+  base.dir <- '/Users/amanchoudhri/aman/penumbra/'
+  base.url <- '/'
+  
+  knitr::opts_knit$set(base.dir=params$base_dir)
+  knitr::opts_chunk$set(fig.path = params$img_dir)
+}
 ```
 
 ```{r libraries, echo=F, message=FALSE}
