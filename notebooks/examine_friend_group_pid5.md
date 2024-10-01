@@ -37,6 +37,41 @@ make_plot('collapsed_pid')
 
 ![](figs/examine_friend_group_pid5/unnamed-chunk-3-1.png)<!-- -->
 
+Revisualize in dot plot format if the outcome measure supports it.
+
+``` r
+plot_var <- as.character(params$categorical_var)
+
+if (plot_var == "friend_group_copartisanship" || plot_var == "friend_group_class") {
+  
+  colors <- c("Democrat" = "blue", "Independent/Not sure"="grey", "Republican" = "red")
+  
+  # Prepare the data
+  plot_data <- df %>%
+    filter(!is.na(!!sym(plot_var))) %>%
+    group_by(across(all_of(c('collapsed_pid', plot_var)))) %>%
+    summarise(count = n(), .groups = "drop_last") %>%
+    mutate(proportion = count / sum(count))
+  
+  p <- ggplot(plot_data, aes(x = !!sym(plot_var), y = proportion)) +
+    geom_point(
+      stat = "identity",
+      position=position_jitter(width=0.2),
+      aes(colour = collapsed_pid),
+      size=3,
+      ) +
+    scale_color_manual(values=colors) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    theme_minimal() +
+    theme(
+      text = element_text(size=15),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+      ) + 
+    guides(colour=FALSE)
+  print(p)
+}
+```
+
 ## By Urbanicity
 
 We’ll repeat the same plot, now by urbanicity.
@@ -45,7 +80,7 @@ We’ll repeat the same plot, now by urbanicity.
 make_plot('urbancity')
 ```
 
-![](figs/examine_friend_group_pid5/unnamed-chunk-4-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-5-1.png)<!-- -->
 
 ## Personal Party ID and Urbanicity
 
@@ -55,7 +90,7 @@ Now let’s interact personal PID and urbanicity.
 make_plot('collapsed_pid', 'urbancity')
 ```
 
-![](figs/examine_friend_group_pid5/unnamed-chunk-5-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-6-1.png)<!-- -->
 
 ## By State Partisan Leaning
 
@@ -94,7 +129,7 @@ First, just plot friend group PID by state leaning.
 make_plot('state_leaning')
 ```
 
-![](figs/examine_friend_group_pid5/unnamed-chunk-7-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-8-1.png)<!-- -->
 
 Now repeat, facetting once more by individual PID as well.
 
@@ -102,7 +137,7 @@ Now repeat, facetting once more by individual PID as well.
 make_plot('collapsed_pid', 'state_leaning')
 ```
 
-![](figs/examine_friend_group_pid5/unnamed-chunk-8-1.png)<!-- -->
+![](figs/examine_friend_group_pid5/unnamed-chunk-9-1.png)<!-- -->
 
 ## Appendix
 

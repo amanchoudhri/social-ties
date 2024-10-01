@@ -3,9 +3,9 @@ author: "Aman Choudhri"
 date: "2024-09-09"
 params:
   categorical_var:
-    value: 'friend_group_pid5'
+    value: 'friend_group_copartisanship'
   cat_var_display_name:
-    value: 'Friend Group Party ID'
+    value: 'Friend Group Copartisanship'
   img_dir:
     value: 'img/friend_group_pid5/'
   base_dir:
@@ -144,6 +144,40 @@ Start by plotting ``r params$categorical_var`` by a person's individual party ID
 
 ```{r}
 make_plot('collapsed_pid')
+```
+
+Revisualize in dot plot format if the outcome measure supports it.
+```{r}
+plot_var <- as.character(params$categorical_var)
+
+if (plot_var == "friend_group_copartisanship" || plot_var == "friend_group_class") {
+  
+  colors <- c("Democrat" = "blue", "Independent/Not sure"="grey", "Republican" = "red")
+  
+  # Prepare the data
+  plot_data <- df %>%
+    filter(!is.na(!!sym(plot_var))) %>%
+    group_by(across(all_of(c('collapsed_pid', plot_var)))) %>%
+    summarise(count = n(), .groups = "drop_last") %>%
+    mutate(proportion = count / sum(count))
+  
+  p <- ggplot(plot_data, aes(x = !!sym(plot_var), y = proportion)) +
+    geom_point(
+      stat = "identity",
+      position=position_jitter(width=0.2),
+      aes(colour = collapsed_pid),
+      size=3,
+      ) +
+    scale_color_manual(values=colors) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    theme_minimal() +
+    theme(
+      text = element_text(size=15),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+      ) + 
+    guides(colour=FALSE)
+  print(p)
+}
 ```
 
 ## By Urbanicity
