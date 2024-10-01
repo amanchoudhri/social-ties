@@ -1,45 +1,118 @@
----
-author: "Aman Choudhri"
-date: "2024-09-09"
-params:
-  categorical_var:
-    value: 'friend_group_pid5'
-  cat_var_display_name:
-    value: 'Friend Group Party ID'
-output:
-  pdf_document: 
-    fig_height: 5
-  html_document: default
-title: "Explore Correlations with `r params$cat_var_display_name`"
-editor_options: 
-  markdown:
-    wrap: 72
----
+Explore Correlations with Friend Group Party ID
+================
+Aman Choudhri
+2024-09-09
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r libraries, echo=F, message=FALSE}
-library(dplyr)
-library(ggplot2)
-library(stringr)
-```
-
-```{r}
+``` r
 CLEANED_DATA_FILENAME <- 'dat/processed.rds'
 
 df <- readRDS(CLEANED_DATA_FILENAME)
 ```
 
-Save some instance variables for use in the notebook based on the specified plot
-variable, ``r params$categorical_var``.
-```{r declare-cat-var}
+Save some instance variables for use in the notebook based on the
+specified plot variable, `friend_group_pid3`.
+
+``` r
 outcome_var <- params$categorical_var
 outcome_var_name <- params$cat_var_display_name
 ```
 
-```{r, make-plot, echo=F}
+Also, since we’ll be using these parameters over and over again, define
+a helper function so we don’t have to repeat code. For more information
+on the `make_plot_base` function, see the appendix at the bottom.
+
+``` r
+make_plot <- function (group_var1, group_var2=NULL) {
+  return(make_plot_base(df, outcome_var, outcome_var_name, group_var1, group_var2))
+}
+```
+
+## By Personal Party ID
+
+Start by plotting `friend_group_pid3` by a person’s individual party ID.
+
+``` r
+make_plot('collapsed_pid')
+```
+
+![](img/examine_friend_group_pid3/unnamed-chunk-3-1.png)<!-- -->
+
+## By Urbanicity
+
+We’ll repeat the same plot, now by urbanicity.
+
+``` r
+make_plot('urbancity')
+```
+
+![](img/examine_friend_group_pid3/unnamed-chunk-4-1.png)<!-- -->
+
+## Personal Party ID and Urbanicity
+
+Now let’s interact personal PID and urbanicity.
+
+``` r
+make_plot('collapsed_pid', 'urbancity')
+```
+
+![](img/examine_friend_group_pid3/unnamed-chunk-5-1.png)<!-- -->
+
+## By State Partisan Leaning
+
+Let’s create a rough analysis by state. Splitting states into D, R, and
+swing, we’ll again display the proportions of friend group party ID.
+We’ll use data from the Cook Political Report. To simplify the analysis,
+we won’t consider the congressional districts in Maine and Nebraska
+separately. We mark Maine as D, and Nebraska as R.
+
+``` r
+cook_ratings <- read.csv('dat/cook_political_report_ratings.csv')
+
+# remove maine and nebraska's congressional districts
+cook_ratings <- cook_ratings[cook_ratings$state %in% state.name,]
+
+# collapse "leans" and "likelies" down to hard D/R/Tossup
+cook_ratings <- cook_ratings %>%
+  mutate(
+    category = case_when(
+      str_detect(category, "D$") ~ "Democratic",
+      str_detect(category, "R$") ~ "Republican",
+      TRUE ~ "Tossup"
+    ) %>%
+      factor(levels = c("Democratic", "Tossup", "Republican"))
+  )
+
+# add into the df
+df <- merge(df, cook_ratings, by.x='inputstate', by.y='state')
+# rename column
+df$state_leaning <- df$category
+```
+
+First, just plot friend group PID by state leaning.
+
+``` r
+make_plot('state_leaning')
+```
+
+![](img/examine_friend_group_pid3/unnamed-chunk-7-1.png)<!-- -->
+
+Now repeat, facetting once more by individual PID as well.
+
+``` r
+make_plot('collapsed_pid', 'state_leaning')
+```
+
+![](img/examine_friend_group_pid3/unnamed-chunk-8-1.png)<!-- -->
+
+## Appendix
+
+``` r
+library(dplyr)
+library(ggplot2)
+library(stringr)
+```
+
+``` r
 make_plot_base <- function(
     data,
     categorical_plot_var,
@@ -112,87 +185,4 @@ make_plot_base <- function(
   
   return(p)
 }
-```
-
-Also, since we'll be using these parameters over and over again, define a helper
-function so we don't have to repeat code. For more information on the
-`make_plot_base` function, see the appendix at the bottom.
-```{r}
-make_plot <- function (group_var1, group_var2=NULL) {
-  return(make_plot_base(df, outcome_var, outcome_var_name, group_var1, group_var2))
-}
-```
-
-## By Personal Party ID
-
-Start by plotting ``r params$categorical_var`` by a person's individual party ID.
-
-```{r}
-make_plot('collapsed_pid')
-```
-
-## By Urbanicity
-
-We'll repeat the same plot, now by urbanicity.
-
-```{r}
-make_plot('urbancity')
-```
-
-## Personal Party ID and Urbanicity
-
-Now let's interact personal PID and urbanicity.
-
-```{r}
-make_plot('collapsed_pid', 'urbancity')
-```
-
-## By State Partisan Leaning
-
-Let's create a rough analysis by state. Splitting states into D, R, and
-swing, we'll again display the proportions of friend group party ID.
-We'll use data from the Cook Political Report. To simplify the analysis,
-we won't consider the congressional districts in Maine and Nebraska
-separately. We mark Maine as D, and Nebraska as R.
-
-```{r}
-cook_ratings <- read.csv('dat/cook_political_report_ratings.csv')
-
-# remove maine and nebraska's congressional districts
-cook_ratings <- cook_ratings[cook_ratings$state %in% state.name,]
-
-# collapse "leans" and "likelies" down to hard D/R/Tossup
-cook_ratings <- cook_ratings %>%
-  mutate(
-    category = case_when(
-      str_detect(category, "D$") ~ "Democratic",
-      str_detect(category, "R$") ~ "Republican",
-      TRUE ~ "Tossup"
-    ) %>%
-      factor(levels = c("Democratic", "Tossup", "Republican"))
-  )
-
-# add into the df
-df <- merge(df, cook_ratings, by.x='inputstate', by.y='state')
-# rename column
-df$state_leaning <- df$category
-```
-
-First, just plot friend group PID by state leaning.
-
-```{r}
-make_plot('state_leaning')
-```
-
-Now repeat, facetting once more by individual PID as well.
-
-```{r}
-make_plot('collapsed_pid', 'state_leaning')
-```
-
-## Appendix
-
-```{r, libraries, eval=F}
-```
-```{r, make-plot, eval=F}
 ```
