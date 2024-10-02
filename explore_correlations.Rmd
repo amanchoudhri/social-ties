@@ -25,6 +25,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dpi=300,fig.width=7)
 
 if (params$output_mode == 'github') {
   base.dir <- '/Users/amanchoudhri/aman/penumbra/'
@@ -55,7 +56,7 @@ outcome_var_name <- params$cat_var_display_name
 ```
 
 ```{r, make-plot, echo=F}
-make_plot_base <- function(
+bar_plot_base <- function(
     data,
     categorical_plot_var,
     categorical_plot_var_name,
@@ -131,10 +132,13 @@ make_plot_base <- function(
 
 Also, since we'll be using these parameters over and over again, define a helper
 function so we don't have to repeat code. For more information on the
-`make_plot_base` function, see the appendix at the bottom.
+`bar_plot_base` function, see the appendix at the bottom.
 ```{r}
-make_plot <- function (group_var1, group_var2=NULL) {
-  return(make_plot_base(df, outcome_var, outcome_var_name, group_var1, group_var2))
+bar_plot <- function (group_var1, group_var2=NULL) {
+  return(bar_plot_base(df, outcome_var, outcome_var_name, group_var1, group_var2))
+}
+dot_plot <- function (group_var1, group_var2=NULL) {
+  return(dot_plot_base(df, outcome_var, outcome_var_name, group_var1, group_var2))
 }
 ```
 
@@ -143,25 +147,39 @@ make_plot <- function (group_var1, group_var2=NULL) {
 Start by plotting ``r params$categorical_var`` by a person's individual party ID.
 
 ```{r}
-make_plot('collapsed_pid')
+bar_plot('collapsed_pid')
 ```
 
 Revisualize in dot plot format if the outcome measure supports it.
-```{r}
-plot_var <- as.character(params$categorical_var)
-
-if (plot_var == "friend_group_copartisanship" || plot_var == "friend_group_class") {
-  
+```{r dot-plot, echo=F}
+dot_plot_base <- function(
+    data,
+    categorical_plot_var,
+    categorical_plot_var_name,
+    group_var1,
+    group_var2 = NULL
+  ) {
+  # Assume that group_var1 is a party_id-like variable
   colors <- c("Democrat" = "blue", "Independent/Not sure"="grey", "Republican" = "red")
   
+  # Create the grouping expression
+  if (is.null(group_var2)) {
+    group_vars <- c(as.character(group_var1))
+  } else {
+    group_vars <- c(as.character(group_var1), as.character(group_var2))
+    # drop rows where group_var2 is NA
+    data <- data %>% filter(!is.na(!!sym(group_var2)))
+  }
+  
   # Prepare the data
-  plot_data <- df %>%
-    filter(!is.na(!!sym(plot_var))) %>%
-    group_by(across(all_of(c('collapsed_pid', plot_var)))) %>%
+  plot_data <- data %>%
+    filter(!is.na(!!sym(categorical_plot_var))) %>%
+    group_by(across(all_of(c(group_vars, categorical_plot_var)))) %>%
     summarise(count = n(), .groups = "drop_last") %>%
     mutate(proportion = count / sum(count))
   
-  p <- ggplot(plot_data, aes(x = !!sym(plot_var), y = proportion)) +
+  p <- ggplot(plot_data, aes(x = !!sym(categorical_plot_var), y = proportion)) +
+    geom_hline(yintercept = 0, linetype = "solid", color = "gray50") +
     geom_point(
       stat = "identity",
       position=position_jitter(width=0.2),
@@ -169,23 +187,43 @@ if (plot_var == "friend_group_copartisanship" || plot_var == "friend_group_class
       size=3,
       ) +
     scale_color_manual(values=colors) +
-    scale_y_continuous(labels = scales::percent_format()) +
-    theme_minimal() +
+    scale_y_continuous(labels = scales::percent_format(), expand=expansion(mult=c(0,0.1))) +
+    theme_linedraw() +
     theme(
-      text = element_text(size=15),
-      axis.text.x = element_text(angle = 45, hjust = 1)
+      text = element_text(size=12),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      panel.grid.major.x = element_line(color = "grey50", linewidth=0.2)
       ) + 
+    labs(
+        title = paste(
+          categorical_plot_var_name,
+          if(!is.null(group_var2)) paste("by", group_var2)
+          ),
+         x = categorical_plot_var_name,
+         y = "Proportion") +
     guides(colour=FALSE)
-  print(p)
+  
+  if (!is.null(group_var2)) {
+    facet_expr <- as.formula(paste(". ~", quo_name(group_var2)))
+    p <- p + facet_grid(facet_expr) + theme(panel.spacing = unit(0.5, "cm"))
+  }
+  return(p)
 }
 ```
 
+```{r}
+should_display_dot <- outcome_var == "friend_group_copartisanship" || outcome_var == "friend_group_class"
+```
+
+```{r, pid, eval=should_display_dot}
+dot_plot('collapsed_pid')
+```
 ## By Urbanicity
 
 We'll repeat the same plot, now by urbanicity.
 
 ```{r}
-make_plot('urbancity')
+bar_plot('urbancity')
 ```
 
 ## Personal Party ID and Urbanicity
@@ -193,7 +231,7 @@ make_plot('urbancity')
 Now let's interact personal PID and urbanicity.
 
 ```{r}
-make_plot('collapsed_pid', 'urbancity')
+bar_plot('collapsed_pid', 'urbancity')
 ```
 
 ## By State Partisan Leaning
@@ -230,13 +268,74 @@ df$state_leaning <- df$category
 First, just plot friend group PID by state leaning.
 
 ```{r}
-make_plot('state_leaning')
+bar_plot('state_leaning')
 ```
 
 Now repeat, facetting once more by individual PID as well.
 
 ```{r}
-make_plot('collapsed_pid', 'state_leaning')
+bar_plot('collapsed_pid', 'state_leaning')
+```
+
+```{r, pid_and_state, eval=should_display_dot}
+dot_plot('collapsed_pid', 'state_leaning')
+```
+
+## By County Partisan Leaning
+In `process-data.R`, we impute county information based on the ZIP code
+in which the respondent said they currently lived.
+
+We split them into D, R, and swing based on their vote proportions in the 2020
+election. Note: Alaska and Rhode island do NOT have sub-state level vote share information
+available from the MIT election lab, so we treat the whole state as "County".
+
+```{r}
+# created in `county_leanings.Rmd`
+county_leanings <- read.csv('dat/county-partisan-leanings.csv')
+county_leanings
+```
+
+```{r}
+# merge these `terciles` in based on state and county name
+df <- df %>% mutate(state_upper = toupper(inputstate), county_upper=toupper(county)) %>%
+  left_join(
+    county_leanings,
+    by=c("state_upper"="state", "county_upper"="county_name")
+  )
+
+county_leaning_labels <- paste(c("Democrat", "Swing", "Republican"), "County")
+df$county_leaning <- factor(county_leaning_labels[df$tercile + 2], levels=county_leaning_labels)
+```
+```{r}
+df %>% select(inputstate, collapsed_pid, state_upper, county_upper, proportion_democrat, county_leaning)
+```
+```{r}
+bar_plot('county_leaning')
+```
+
+```{r}
+bar_plot('collapsed_pid', 'county_leaning')
+```
+
+```{r, pid_and_county, eval=should_display_dot}
+dot_plot('collapsed_pid', 'county_leaning')
+```
+
+```{r}
+copartisanship_mapping <- paste(c("Co-partisan", "Swing", "Counter-partisan"), "County")
+df$county_copartisanship <- ifelse(
+  df$collapsed_pid == "Democrat",
+  copartisanship_mapping[df$tercile + 2],
+  rev(copartisanship_mapping)[df$tercile + 2]
+)
+df$county_copartisanship <- factor(df$county_copartisanship, levels=copartisanship_mapping)
+df[df$collapsed_pid == "Independent/Not sure", "county_copartisanship"] <- NA
+
+df %>% select(collapsed_pid, county_leaning, county_copartisanship)
+```
+
+```{r, pid_and_county_cop, eval=should_display_dot}
+dot_plot('collapsed_pid', 'county_copartisanship')
 ```
 
 ## Appendix
@@ -244,4 +343,6 @@ make_plot('collapsed_pid', 'state_leaning')
 ```{r, libraries, eval=F}
 ```
 ```{r, make-plot, eval=F}
+```
+```{r dot-plot, eval=F}
 ```
