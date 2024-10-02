@@ -157,10 +157,34 @@ dot_plot_base <- function(
     categorical_plot_var,
     categorical_plot_var_name,
     group_var1,
-    group_var2 = NULL
+    group_var2 = NULL,
+    remove_na_var1_rows=T,
+    remove_na_var2_rows=T,
+    title=NULL
   ) {
-  # Assume that group_var1 is a party_id-like variable
-  colors <- c("Democrat" = "blue", "Independent/Not sure"="grey", "Republican" = "red")
+  three_level_partisan_colors <- c("blue", "grey", "red")
+  collapsed_pid_colors <- three_level_partisan_colors
+  names(collapsed_pid_colors) <- c("Democrat", "Independent/Not sure", "Republican")
+  
+  
+  four_level_nonpartisan_colors <- c('#7b3294','#c2a5cf','#a6dba0','#008837')
+  # four_level_nonpartisan_colors <- c('#a6611a','#dfc27d','#80cdc1','#018571')
+  # four_level_nonpartisan_colors <- rev(c('#ffffcc','#a1dab4','#41b6c4','#225ea8'))
+  social_class_colors <- four_level_nonpartisan_colors
+  names(social_class_colors) <- c("Working class", "Middle class", "Upper middle class", "Wealthy")
+  
+  color_palettes <- list(
+    collapsed_pid = collapsed_pid_colors,
+    social_class = social_class_colors
+  )
+  
+  # Select the appropriate color palette
+  if (!group_var1 %in% names(color_palettes)) {
+    stop(paste("No color palette defined for", group_var1))
+  }
+  
+  colors <- color_palettes[[group_var1]]
+  
   
   # Create the grouping expression
   if (is.null(group_var2)) {
@@ -171,9 +195,18 @@ dot_plot_base <- function(
     data <- data %>% filter(!is.na(!!sym(group_var2)))
   }
   
+  # Filter NA rows if appropriate
+  filter_expr = T
+  if (remove_na_var1_rows) {
+    filter_expr <- filter_expr & !is.na(data[group_var1])
+  }
+  if (remove_na_var2_rows) {
+    filter_expr <- filter_expr & !is.na(data[group_var1])
+  }
+  
   # Prepare the data
   plot_data <- data %>%
-    filter(!is.na(!!sym(categorical_plot_var))) %>%
+    filter(!is.na(!!sym(categorical_plot_var)) & filter_expr) %>%
     group_by(across(all_of(c(group_vars, categorical_plot_var)))) %>%
     summarise(count = n(), .groups = "drop_last") %>%
     mutate(proportion = count / sum(count))
@@ -183,7 +216,7 @@ dot_plot_base <- function(
     geom_point(
       stat = "identity",
       position=position_jitter(width=0.2),
-      aes(colour = collapsed_pid),
+      aes(colour = !!sym(group_var1)),
       size=3,
       ) +
     scale_color_manual(values=colors) +
@@ -200,8 +233,11 @@ dot_plot_base <- function(
           if(!is.null(group_var2)) paste("by", group_var2)
           ),
          x = categorical_plot_var_name,
-         y = "Proportion") +
-    guides(colour=FALSE)
+         y = "Proportion")
+  
+  if(group_var1 != "social_class") {
+    p <- p + guides(colour=FALSE)
+  }
   
   if (!is.null(group_var2)) {
     facet_expr <- as.formula(paste(". ~", quo_name(group_var2)))
@@ -218,6 +254,13 @@ should_display_dot <- outcome_var == "friend_group_copartisanship" || outcome_va
 ```{r, pid, eval=should_display_dot}
 dot_plot('collapsed_pid')
 ```
+
+## Self-Reported Social Class
+
+```{r, social-class}
+dot_plot('social_class')
+```
+
 ## By Urbanicity
 
 We'll repeat the same plot, now by urbanicity.
