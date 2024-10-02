@@ -99,6 +99,24 @@ df$friend_group_copartisanship <- factor(df$friend_group_copartisanship,
                                          levels = copartisanship_levels)
 
 
+# COUNTY
+zip_to_county_raw <- read.csv('dat/zip_to_county.csv')
+
+zip_to_char <- function(zip) {
+  zip_char <- as.character(zip)
+  ifelse(
+    nchar(zip_char) == 5,
+    zip_char,
+    str_pad(zip_char, 5, pad = "0", side = "left")
+  )
+}
+
+df <- df %>%
+  mutate(
+    zipcode = zip_to_char(zipcode),
+    state_lower = tolower(inputstate)
+    ) %>%
+  left_join(zip_to_county %>% select(zipcode, state_lower, county), by=c('state_lower'='state_lower', 'zipcode'='zipcode'))
 
 # DATA IMPUTATION
 
@@ -113,7 +131,9 @@ df$urbancity[is.na(df$urbancity)] <- "City"
 processed <- df
 saveRDS(processed, 'dat/processed.rds')
 
-# STATE-LEVEL INFORMATION
+# ---- OTHER DATA SOURCES ----
+
+# STATE-LEVEL LEANINGS
 
 # Data source: The Cook Political Report
 # URL: https://cookpolitical.com/ratings/presidential-race-ratings

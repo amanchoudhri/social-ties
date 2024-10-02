@@ -1,0 +1,177 @@
+---
+title: "County Partisan Leanings"
+author: "Aman Choudhri"
+date: "2024-10-01"
+output: pdf_document
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+```
+
+```{r}
+precinct_data <- read.csv('dat/mit-edsl-prez-by-precinct-2020/PRESIDENT_precinct_general.csv')
+```
+
+Get Democratic and Republican voteshares.
+```{r}
+dr_totals_only = precinct_data[precinct_data$party_simplified %in% c("DEMOCRAT", "REPUBLICAN"),]
+dr_totals_only
+```
+
+Aggregate by county.
+
+```{r}
+totals_by_county <- dr_totals_only %>% group_by(state, county_name, party_simplified) %>% summarize(n=sum(votes))
+totals_by_county
+```
+Now get the vote share proportions.
+```{r}
+by_county <- totals_by_county %>% mutate(total_votes=sum(n)) %>% summarize(
+  democrat_votes=n[party_simplified=="DEMOCRAT"],
+  total_votes=first(total_votes),
+  proportion_democrat=democrat_votes/total_votes,
+  .groups="drop"
+)
+by_county
+```
+Process any naming issues with `by_county`.
+```{r}
+by_county[(by_county$county_name == "ST LOUIS COUNTY") & (by_county$state == "MISSOURI"), "county_name"] <- "ST LOUIS"
+```
+Drop the entry for `KANSAS CITY` since those votes are already counted in `JACKSON` county.
+Also, throw out overseas voters in Maine, since we don't know what county they are from.
+And delete a blank row for Rhode Island with no county information.
+```{r}
+is_kcmo <- (by_county$state == "MISSOURI") & (by_county$county_name == "KANSAS CITY")
+is_uocava <- (by_county$state == "MAINE") & (by_county$county_name == "STATEWIDE UOCAVA")
+is_ri_state_only<- (by_county$state == "RHODE ISLAND") & (by_county$county_name == "")
+by_county <- by_county %>% filter(!is_kcmo & !is_uocava)
+```
+
+```{r}
+ggplot(by_county, aes(x=proportion_democrat)) + geom_histogram() + ggtitle('County Democratic Voteshares in 2020 Election')
+```
+
+Calculate tercile sizes, if we say a `swing` county is between 0.45 and 0.55.
+```{r}
+lower_bound = 0.45
+upper_bound = 0.55
+by_county$tercile <- ifelse(
+  by_county$proportion_democrat < lower_bound, 1,
+  ifelse(
+    by_county$proportion_democrat < upper_bound, 0, -1
+  )
+)
+
+label <- c(
+  paste0("prop_dem < ", lower_bound),
+  paste0(lower_bound, " < prop_dem < ", upper_bound),
+  paste0("prop_dem > ", upper_bound)
+)
+by_county$tercile_label <- factor(label[by_county$tercile + 2], levels=label)
+by_county
+```
+
+Get the populations of each county.
+```{r}
+# Data: US census
+# https://www.census.gov/data/tables/time-series/demo/popest/2020s-counties-total.html
+
+populations_raw <- read.csv('dat/DECENNIALPL2020.P1-Data.csv', header=T, skip=1)
+
+# basic QoL variable renaming and selection
+populations <- populations_raw %>%
+  rename(geographic_area_name = Geographic.Area.Name, population=X...Total. ) %>%
+  select(geographic_area_name, population)
+
+populations
+```
+```{r}
+geo_info <- as_tibble(populations$geographic_area_name %>% str_split_fixed(", ", n=2))
+colnames(geo_info) <- c("county_raw", "state_raw")
+geo_info
+```
+```{r}
+populations <- populations %>% bind_cols(geo_info)
+populations
+```
+
+```{r}
+# separate county (or census area) and state
+# match formatting of state and county names from the MIT dataset
+populations$state <- populations$state_raw %>% str_to_upper()
+populations$county_name <- (populations$county_raw %>%
+  str_to_upper() %>%
+  str_remove(" COUNTY") %>%
+  str_remove(" PARISH") %>%
+  str_replace("^ST\\. ", "ST ") %>%
+  str_replace("^STE\\. ", "STE ")
+)
+# handle naming quirks
+populations[(populations$state == "NEW MEXICO") & (populations$county_name == "DOÑA ANA"), "county_name"] <- "DONA ANA"
+populations[(populations$state == "MISSOURI") & (populations$county_name == "DEKALB"), "county_name"] <- "DE KALB"
+populations[(populations$state == "LOUISIANA") & (populations$county_name == "LASALLE"), "county_name"] <- "LA SALLE"
+# populations[(populations$county_name == "ST LOUIS CITY") & (populations$state == "MISSOURI"), "county_name"] <- "ST LOUIS"
+# select only the population estimate from 2020
+pops_to_merge <- populations %>% select(c(state, county_name, population))
+pops_to_merge
+```
+
+Merge them back into our county data.
+```{r}
+by_county_merged <- merge(
+  by_county,
+  pops_to_merge,
+  by.x = c('state', 'county_name'),
+  by.y = c('state', 'county_name'),
+  all.x=T
+)
+by_county_merged
+```
+```{r}
+by_county_merged[is.na(by_county_merged$population),]
+```
+Lastly, aggregate all populations across subunits in Alaska and Rhode Island, since
+we don't have subunit-level voting information in those areas.
+```{r}
+state_level_pop <- populations %>%
+  group_by(state) %>%
+  summarize(population = sum(population)) %>%
+  filter(state %in% c("ALASKA", "RHODE ISLAND"))
+
+by_county_merged <- by_county_merged %>%
+  left_join(state_level_pop, by = "state") %>%
+  mutate(population = coalesce(population.x, population.y)) %>%
+  select(-population.x, -population.y)
+
+```
+
+Check to make sure we have all of our population information.
+```{r}
+sum(is.na(by_county_merged$population))
+```
+
+```{r}
+by_county_merged
+```
+```{r}
+state_level_pop
+```
+
+```{r}
+by_county_merged %>% group_by(tercile_label) %>% summarize(
+  n_counties = n(),
+  n_votes = sum(total_votes),
+  n_people = sum(population)
+)
+```
+
+
+```{r}
+out <- by_county_merged %>% select(state, county_name, population, total_votes, proportion_democrat, tercile)
+write.csv(out, 'dat/county-partisan-leanings.csv')
+```
