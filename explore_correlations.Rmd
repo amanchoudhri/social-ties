@@ -45,15 +45,19 @@ library(stringr)
 In this notebook, we explore the covariate ``r params$categorical_var``.
 
 ## Setup
+
 Load the YouGov survey data (pre-processed by `process-data.R`).
+
 ```{r}
 CLEANED_DATA_FILENAME <- 'dat/processed.rds'
 
 df <- readRDS(CLEANED_DATA_FILENAME)
 ```
 
-Save some instance variables for use in the notebook based on the specified plot
-variable (since this is an auto-generated parameterized report).
+Save some instance variables for use in the notebook based on the
+specified plot variable (since this is an auto-generated parameterized
+report).
+
 ```{r declare-cat-var}
 outcome_var <- params$categorical_var
 outcome_var_name <- params$cat_var_display_name
@@ -230,9 +234,11 @@ bar_plot_base <- function(
 }
 ```
 
-Also, since we'll be using these parameters over and over again, define a helper
-function so we don't have to repeat code. For more information on the
-`dot_plot_base` and `bar_plot_base` functions, see the appendix at the bottom.
+Also, since we'll be using these parameters over and over again, define
+a helper function so we don't have to repeat code. For more information
+on the `dot_plot_base` and `bar_plot_base` functions, see the appendix
+at the bottom.
+
 ```{r}
 dot_plot <- function (group_var1, group_var2=NULL) {
   return(dot_plot_base(df, outcome_var, outcome_var_name, group_var1, group_var2))
@@ -246,15 +252,17 @@ bar_plot <- function (group_var1, group_var2=NULL) {
 
 ## Personal Party ID
 
-Start by plotting ``r params$categorical_var`` by a person's individual party ID.
+Start by plotting `r params$categorical_var` by a person's individual
+party ID.
 
-```{r, pid}
+```{r, pid-dot}
 dot_plot('collapsed_pid')
 ```
 
-Also display in bar plot format, since that can be more legible for some outcome measures.
+Also display in bar plot format, since that can be more legible for some
+outcome measures.
 
-```{r}
+```{r, pid-bar}
 bar_plot('collapsed_pid')
 ```
 
@@ -263,7 +271,6 @@ bar_plot('collapsed_pid')
 ```{r, social-class}
 dot_plot('social_class')
 ```
-
 
 ## By State Partisan Leaning
 
@@ -296,22 +303,55 @@ df <- merge(df, cook_ratings, by.x='inputstate', by.y='state')
 df$state_leaning <- df$category
 ```
 
-Let's examine how copartisanship varies by individual PID and state leaning.
-```{r, pid_and_state, eval=should_display_dot}
+Let's examine how copartisanship varies by individual PID and state
+leaning.
+
+```{r, pid-state}
 dot_plot('collapsed_pid', 'state_leaning')
 ```
 
+To facilitate comparison between Democrats in blue states and
+Republicans in red states, we'll also create a new column indicating
+whether a state's leaning is "co-partisan" with an individual person's
+party ID. So `state_copartisananship` for a Democrat living in a
+Democratic state would be "Co-partisan", but a Republican living in the
+same state would have the value "Counter-partisan".
+
+```{r}
+copartisanship_mapping <- paste(c("Co-partisan", "Swing", "Counter-partisan"), "State")
+df$state_copartisanship <- ifelse(
+  df$collapsed_pid == "Democrat",
+  copartisanship_mapping[as.numeric(df$state_leaning)],
+  rev(copartisanship_mapping)[as.numeric(df$state_leaning)]
+)
+df$state_copartisanship <- factor(df$state_copartisanship, levels=copartisanship_mapping)
+df[df$collapsed_pid == "Independent/Not sure", "state_copartisanship"] <- NA
+
+knitr::kable(
+  df %>% select(collapsed_pid, state_leaning, state_copartisanship) %>%
+    rename(individual_party_id=collapsed_pid) %>%
+    slice_head(n=5)
+)
+```
+
+```{r, pid-state-cop}
+dot_plot('collapsed_pid', 'state_copartisanship')
+```
+
 ## By County Partisan Leaning
+
 We can get more granular: county-level information.
 
-In `process-data.R`, we impute county information based on the ZIP code in which
-the respondent said they currently lived.
+In `process-data.R`, we impute county information based on the ZIP code
+in which the respondent said they currently lived.
 
-We split them into D, R, and swing based on their vote proportions in the 2020
-election. Note: Alaska and Rhode island do NOT have sub-state level vote share information
-available from the MIT election lab, so we treat the whole state as "County".
+We split them into D, R, and swing based on their vote proportions in
+the 2020 election. Note: Alaska and Rhode island do NOT have sub-state
+level vote share information available from the MIT election lab, so we
+treat the whole state as "County".
 
 First, load in the county leanings information.
+
 ```{r}
 # created in `county_leanings.Rmd`
 county_leanings <- read.csv('dat/county-partisan-leanings.csv')
@@ -324,6 +364,7 @@ knitr::kable(
 ```
 
 Merge it into `df`.
+
 ```{r}
 # merge these `terciles` in based on state and county name
 df <- df %>% mutate(state_upper = toupper(inputstate), county_upper=toupper(county)) %>%
@@ -346,15 +387,14 @@ knitr::kable(
 ```
 
 Now plot it.
-```{r, pid_and_county, eval=should_display_dot}
+
+```{r, pid-county}
 dot_plot('collapsed_pid', 'county_leaning')
 ```
 
-To facilitate comparison between Dems in Dem counties and Reps in Rep counties,
-we'll also create a new column indicating whether a county's leaning is
-"co-partisan" with an individual person's party ID. So `county_copartisananship`
-for a Democrat living in a Democratic county would be "Co-partisan", but a
-Republican living in the same county would have the value "Counter-partisan".
+Similarly, we now create a new covariate indicating the "co-partisanship" of a county,
+just like above with states.
+
 ```{r}
 copartisanship_mapping <- paste(c("Co-partisan", "Swing", "Counter-partisan"), "County")
 df$county_copartisanship <- ifelse(
@@ -372,22 +412,23 @@ knitr::kable(
 )
 ```
 
-```{r, pid_and_county_cop}
+```{r, pid-county-cop}
 dot_plot('collapsed_pid', 'county_copartisanship')
 ```
 
 ## By Urbanicity
 
-The above are more granular information about locality, but we also do have information
-about the urbanicity of the respondent's area. We'll analyze it here.
+The above are more granular information about locality, but we also do
+have information about the urbanicity of the respondent's area. We'll
+analyze it here.
 
-```{r}
+```{r, urbanicity-bar}
 bar_plot('urbanicity')
 ```
 
 Let's interact personal PID and urbanicity.
 
-```{r}
+```{r, pid-urbanicity}
 dot_plot('collapsed_pid', 'urbanicity')
 ```
 
@@ -395,7 +436,9 @@ dot_plot('collapsed_pid', 'urbanicity')
 
 ```{r, libraries, eval=F}
 ```
+
 ```{r, make-plot, eval=F}
 ```
+
 ```{r dot-plot, eval=F}
 ```

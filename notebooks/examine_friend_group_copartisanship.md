@@ -43,14 +43,14 @@ bar_plot <- function (group_var1, group_var2=NULL) {
 
 ## Personal Party ID
 
-Start by plotting `friend_group_copartisanship` by a person’s individual
+Start by plotting friend_group_copartisanship by a person’s individual
 party ID.
 
 ``` r
 dot_plot('collapsed_pid')
 ```
 
-![](figs/examine_friend_group_copartisanship/pid-1.png)<!-- -->
+![](figs/examine_friend_group_copartisanship/pid-dot-1.png)<!-- -->
 
 Also display in bar plot format, since that can be more legible for some
 outcome measures.
@@ -59,7 +59,7 @@ outcome measures.
 bar_plot('collapsed_pid')
 ```
 
-![](figs/examine_friend_group_copartisanship/unnamed-chunk-3-1.png)<!-- -->
+![](figs/examine_friend_group_copartisanship/pid-bar-1.png)<!-- -->
 
 ## Self-Reported Social Class
 
@@ -107,7 +107,45 @@ leaning.
 dot_plot('collapsed_pid', 'state_leaning')
 ```
 
-![](figs/examine_friend_group_copartisanship/pid_and_state-1.png)<!-- -->
+![](figs/examine_friend_group_copartisanship/pid-state-1.png)<!-- -->
+
+To facilitate comparison between Democrats in blue states and
+Republicans in red states, we’ll also create a new column indicating
+whether a state’s leaning is “co-partisan” with an individual person’s
+party ID. So `state_copartisananship` for a Democrat living in a
+Democratic state would be “Co-partisan”, but a Republican living in the
+same state would have the value “Counter-partisan”.
+
+``` r
+copartisanship_mapping <- paste(c("Co-partisan", "Swing", "Counter-partisan"), "State")
+df$state_copartisanship <- ifelse(
+  df$collapsed_pid == "Democrat",
+  copartisanship_mapping[as.numeric(df$state_leaning)],
+  rev(copartisanship_mapping)[as.numeric(df$state_leaning)]
+)
+df$state_copartisanship <- factor(df$state_copartisanship, levels=copartisanship_mapping)
+df[df$collapsed_pid == "Independent/Not sure", "state_copartisanship"] <- NA
+
+knitr::kable(
+  df %>% select(collapsed_pid, state_leaning, state_copartisanship) %>%
+    rename(individual_party_id=collapsed_pid) %>%
+    slice_head(n=5)
+)
+```
+
+| individual_party_id  | state_leaning    | state_copartisanship   |
+|:---------------------|:-----------------|:-----------------------|
+| Democrat             | Republican State | Counter-partisan State |
+| Independent/Not sure | Republican State | NA                     |
+| Republican           | Republican State | Co-partisan State      |
+| Democrat             | Republican State | Counter-partisan State |
+| Republican           | Republican State | Co-partisan State      |
+
+``` r
+dot_plot('collapsed_pid', 'state_copartisanship')
+```
+
+![](figs/examine_friend_group_copartisanship/pid-state-cop-1.png)<!-- -->
 
 ## By County Partisan Leaning
 
@@ -179,14 +217,10 @@ Now plot it.
 dot_plot('collapsed_pid', 'county_leaning')
 ```
 
-![](figs/examine_friend_group_copartisanship/pid_and_county-1.png)<!-- -->
+![](figs/examine_friend_group_copartisanship/pid-county-1.png)<!-- -->
 
-To facilitate comparison between Dems in Dem counties and Reps in Rep
-counties, we’ll also create a new column indicating whether a county’s
-leaning is “co-partisan” with an individual person’s party ID. So
-`county_copartisananship` for a Democrat living in a Democratic county
-would be “Co-partisan”, but a Republican living in the same county would
-have the value “Counter-partisan”.
+Similarly, we now create a new covariate indicating the
+“co-partisanship” of a county, just like above with states.
 
 ``` r
 copartisanship_mapping <- paste(c("Co-partisan", "Swing", "Counter-partisan"), "County")
@@ -217,7 +251,7 @@ knitr::kable(
 dot_plot('collapsed_pid', 'county_copartisanship')
 ```
 
-![](figs/examine_friend_group_copartisanship/pid_and_county_cop-1.png)<!-- -->
+![](figs/examine_friend_group_copartisanship/pid-county-cop-1.png)<!-- -->
 
 ## By Urbanicity
 
@@ -229,7 +263,7 @@ analyze it here.
 bar_plot('urbanicity')
 ```
 
-![](figs/examine_friend_group_copartisanship/unnamed-chunk-9-1.png)<!-- -->
+![](figs/examine_friend_group_copartisanship/urbanicity-bar-1.png)<!-- -->
 
 Let’s interact personal PID and urbanicity.
 
@@ -237,7 +271,7 @@ Let’s interact personal PID and urbanicity.
 dot_plot('collapsed_pid', 'urbanicity')
 ```
 
-![](figs/examine_friend_group_copartisanship/unnamed-chunk-10-1.png)<!-- -->
+![](figs/examine_friend_group_copartisanship/pid-urbanicity-1.png)<!-- -->
 
 ## Appendix
 
