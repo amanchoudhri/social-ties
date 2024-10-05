@@ -1,0 +1,142 @@
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(stringr)
+```
+
+```{r}
+df <- readRDS('dat/processed.rds')
+```
+
+```{r}
+# https://simplemaps.com/data/us-zips
+zip_to_county_raw <- read.csv('dat/uszips.csv')
+```
+
+```{r}
+zip_to_county_raw
+```
+
+```{r}
+zip_to_char <- function(zip) {
+  zip_char <- as.character(zip)
+  ifelse(
+    nchar(zip_char) == 5,
+    zip_char,
+    str_pad(zip_char, 5, pad = "0", side = "left")
+  )
+}
+```
+
+```{r}
+zip_to_county <- zip_to_county_raw %>%
+  mutate(state_lower = tolower(state_name), zipcode = zip_to_char(zip), county=county_name)
+
+zip_to_county %>% select(state_lower, zipcode, county)
+```
+
+```{r}
+merge_v1 <- df %>%
+  mutate(
+    zipcode = zip_to_char(zipcode),
+    state_lower = tolower(inputstate)
+    ) %>%
+  left_join(zip_to_county %>% select(zipcode, state_lower, county), by=c('state_lower'='state_lower', 'zipcode'='zipcode'))
+```
+
+```{r}
+county_not_found = is.na(merge_v1$county) & !is.na(merge_v1$zipcode)
+write.csv(merge_v1[county_not_found, c('state_lower', 'zipcode')], 'zips_not_found.csv')
+merge_v1[county_not_found, c("state_lower", "zipcode")] %>% arrange(state_lower, zipcode)
+```
+
+Hardcode the counties for the ZIP codes not found.
+```{r}
+hardcoded_zips <- tribble(
+  ~state, ~zipcode, ~county,
+  # Alabama
+  "alabama", "36361",  "Dale",
+  # Arizona
+  "arizona", "85075",  "Maricopa",
+  # California
+  NA, "82626",  NA, # not a valid ZIP code
+  "california", "90050",  "Los Angeles",
+  "california", "90099",  "Los Angeles",
+  NA, "91363",  NA,
+  "california", "91408",  "Los Angeles",
+  # Connecticut
+  NA, "06430",  NA, # ZIP code tabulation area
+  # Florida
+  "florida", "32710",  "Orange",
+  "florida", "32853",  "Orange",
+  "florida", "33846",  "Polk",
+  NA, "34598",  NA,
+  NA, "35604",  NA,
+  # Georgia
+  "georgia", "30301",  "Fulton",
+  # Louisiana
+  "louisiana", "71171",  "Bossier",
+  # Massachusetts
+  "massachusetts", "02020",  "Plymouth",
+  # Michigan
+  "michigan", "49501",  "Kent",
+  # Minnesota
+  "minnesota", "56920",  NA, # not a ZIP code in minnesota, it's the parcel return service in DC (?)
+  # Nevada
+  "nevada", "88901",  NA, # invalid
+  # New York
+  "new york", "10116",  "New York",
+  "new york", "10118",  "New York",
+  "new york", "10233",  "New York",
+  "new york", "12345",  "Schenectady",
+  NA, "14929",  NA,
+  # Ohio
+  NA, "46459",  NA,
+  # Oklahoma
+  NA, "70412",  NA,
+  # Pennsylvania
+  NA, "39883",  NA,
+  # South Carolina
+  "south carolina", "29423",  "Charleston",
+  # Tennessee
+  "tennessee", "37320",  "Bradley",
+  # Texas
+  NA, "70109",  NA,
+  "texas", "73301",  "Travis",
+  "texas", "73344",  "Travis",
+  "texas", "77399",  "Polk",
+  # Washington
+  "washington", "98668",  "Clark"
+)
+```
+
+```{r}
+zip_to_county <- zip_to_county %>%
+  left_join(hardcoded_zips, by = c("state_lower"="state", "zipcode"="zipcode")) %>%
+  mutate(county = coalesce(county.y, county.x)) %>%
+  select(state_lower, zipcode, county)
+zip_to_county
+```
+
+Check that it works!
+```{r}
+merged <- df %>%
+  mutate(
+    zipcode = zip_to_char(zipcode),
+    state_lower = tolower(inputstate)
+    ) %>%
+  left_join(zip_to_county %>% select(zipcode, state_lower, county), by=c('state_lower'='state_lower', 'zipcode'='zipcode'))
+```
+
+```{r}
+head(merged %>% select(collapsed_pid, state_lower, zipcode, county))
+```
+
+```{r}
+sum(is.na(merged$county) & !is.na(merged$zipcode))
+```
+
+```{r}
+write.csv(zip_to_county, 'dat/zip_to_county.csv')
+```

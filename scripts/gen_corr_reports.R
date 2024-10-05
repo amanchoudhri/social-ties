@@ -1,4 +1,5 @@
 library(rmarkdown)
+library(ezknitr)
 
 VARS <- c(
   "friend_group_pid3" = "Friend Group Party ID",
@@ -12,19 +13,35 @@ VARS <- c(
 
 # FORMATS <- c("pdf_document", "github_document")
 
+# NOTEBOOKS_DIR <- '/Users/amanchoudhri/aman/penumbra/notebooks'
+# setwd(NOTEBOOKS_DIR)
+
 for (var_id in names(VARS)) {
   fname <- paste0('examine_', var_id)
-  parameters <- list(
-    categorical_var = var_id,
-    cat_var_display_name = VARS[var_id],
-    img_dir = paste0('img/', fname, "/")
+  parameters <- function (output_mode) {
+    p <- list(
+      categorical_var = var_id,
+      cat_var_display_name = VARS[var_id],
+      img_dir = paste0('figs/', fname, "/"),
+      base_dir = NOTEBOOKS_DIR,
+      output_mode = output_mode
+    )
+    return(p)
+  }
+  rmarkdown::render(
+    'explore_correlations.Rmd',
+    output_format = "pdf_document",
+    output_file = fname,
+    output_dir='notebooks',
+    params=parameters('pdf'),
+    envir = new.env()
   )
   rmarkdown::render(
     'explore_correlations.Rmd',
-    output_format = "all",
+    output_format = "github_document",
     output_file = fname,
-    output_dir = "notebooks",
-    params=parameters,
+    output_dir='notebooks',
+    params=parameters('github'),
     envir = new.env()
   )
 }

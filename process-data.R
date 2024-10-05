@@ -32,6 +32,20 @@ df$friend_group_class <- fct_recode(df$friend_group_class,
   "Friends much poorer" = "Much poorer"
 )
 
+# RENAME "urbancity" TO "urbanicity"
+df <- df %>% rename(urbanicity=urbancity)
+
+# IMPUTE NA URBANICITY RESPONSE
+# there's one person who didn't respond. they're in a zip code
+# with urban population: 37,974 and rural population: 6,230
+# (from https://www.city-data.com/zips/46360.html)
+# so just mark them as urban
+df$urbanicity[is.na(df$urbanicity)] <- "City"
+
+# CHANGE "Other" RESPONSES TO URBANICITY TO NA
+# this way we don't throw out the rows outright but
+# our plotting functions know to ignore them since there are so few.
+df[df$urbanicity == "Other" & !is.na(df$urbanicity), "urbanicity"] <- NA
 
 # ----- CREATE NEW VARIABLES -----
 
@@ -101,21 +115,33 @@ df$friend_group_copartisanship <- factor(df$friend_group_copartisanship,
                                          levels = copartisanship_levels)
 
 
+# COUNTY_LEANING
+zip_to_county_raw <- read.csv('dat/zip_to_county.csv')
 
-# DATA IMPUTATION
+zip_to_char <- function(zip) {
+  zip_char <- as.character(zip)
+  ifelse(
+    nchar(zip_char) == 5,
+    zip_char,
+    str_pad(zip_char, 5, pad = "0", side = "left")
+  )
+}
 
-# urbancity --
-# there's one person who didn't respond. they're in a zip code
-# with urban population: 37,974 and rural population: 6,230
-# (from https://www.city-data.com/zips/46360.html)
-# so just mark them as urban
-df$urbancity[is.na(df$urbancity)] <- "City"
+df <- df %>%
+  mutate(
+    zipcode = zip_to_char(zipcode),
+    state_lower = tolower(inputstate)
+    ) %>%
+  left_join(zip_to_county %>% select(zipcode, state_lower, county), by=c('state_lower'='state_lower', 'zipcode'='zipcode'))
 
-# SAVE DF
+
+# ---- SAVE DF ----
 processed <- df
 saveRDS(processed, 'dat/processed.rds')
 
-# STATE-LEVEL INFORMATION
+# ---- OTHER DATA SOURCES ----
+
+# STATE-LEVEL LEANINGS
 
 # Data source: The Cook Political Report
 # URL: https://cookpolitical.com/ratings/presidential-race-ratings
