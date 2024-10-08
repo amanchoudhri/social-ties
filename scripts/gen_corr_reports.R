@@ -1,11 +1,14 @@
 library(rmarkdown)
 library(ezknitr)
 
+setwd("C:/Users/Jared/Desktop/Columbia 2024 (3rd)/Gelman Lab/social-ties")
+
 VARS <- c(
   "friend_group_pid3" = "Friend Group Party ID",
   "friend_group_pid5" = "Friend Group Party ID",
   "friend_group_class" = "Friend Group Class",
-  "friend_group_copartisanship" = "Friend Group Copartisanship"
+  "friend_group_copartisanship" = "Friend Group Copartisanship",
+  "taxwealth" = "Tax Support"
   )
 
 # pdf_format <- rmarkdown::pdf_document()
