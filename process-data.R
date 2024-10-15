@@ -1,7 +1,7 @@
 library(dplyr)
 library(forcats)
 
-setwd("C:/Users/Jared/Desktop/Columbia 2024 (3rd)/Gelman Lab/social-ties")
+setwd("C:/Users/jared/Desktop/Jared/social-ties")
 
 RAW_DATA_FILENAME <- 'dat/RAW.rds'
 

@@ -13,6 +13,10 @@ library(ggplot2)
 ```
 
 ```{r}
+setwd("C:/Users/jared/Desktop/Jared/social-ties")
+```
+
+```{r}
 precinct_data <- read.csv('dat/mit-edsl-prez-by-precinct-2020/PRESIDENT_precinct_general.csv')
 ```
 
