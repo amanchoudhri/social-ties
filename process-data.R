@@ -113,6 +113,41 @@ df$friend_group_copartisanship <- factor(df$friend_group_copartisanship,
                                          levels = copartisanship_levels)
 
 
+# CROSS_PARTY_OPENNESS
+# Define "openness to vote cross-party" based on responses to
+# whether Democrats would 1) consider voting for Trump, or 2) consider voting
+# for any Republican at all over Biden. Similar for Republicans voting for Biden
+# or voting for any Democrat at all over Trump.
+df$cross_party_openness <- df %>% mutate(
+    consider_other_candidate = ifelse(
+      collapsed_pid == "Independent/Not sure",
+      NA,
+      ifelse(
+        collapsed_pid == "Democrat",
+        consider_trump,
+        consider_biden
+      )
+    ),
+    consider_other_party_candidate = ifelse(
+      collapsed_pid == "Independent/Not sure",
+      NA,
+      ifelse(
+        collapsed_pid == "Democrat",
+        consider_any_republican,
+        consider_any_democrat
+      )
+    )
+  ) %>%
+      mutate(
+        openness = case_when(
+          is.na(consider_other_candidate) | is.na(consider_other_party_candidate) ~ NA,
+          as.numeric(consider_other_candidate) == 1 ~ "Very open",
+          consider_other_party_candidate == 1 ~ "Somewhat open",
+          .default="Not open"
+        )
+      ) %>%
+      pull(openness)
+
 # COUNTY_LEANING
 zip_to_county_raw <- read.csv('dat/zip_to_county.csv')
 
