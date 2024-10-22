@@ -18,6 +18,12 @@ precinct_data <- read.csv('dat/mit-edsl-prez-by-precinct-2020/PRESIDENT_precinct
 
 Get Democratic and Republican voteshares.
 ```{r}
+# map Minnesota's Democratic Farmer Labor party to listing as Democrat
+precinct_data <- precinct_data %>% mutate(party_simplified=ifelse(
+  state == "MINNESOTA" & party_detailed=="DEMOCRATIC FARMER LABOR",
+  "DEMOCRAT",
+  party_simplified
+  ))
 dr_totals_only = precinct_data[precinct_data$party_simplified %in% c("DEMOCRAT", "REPUBLICAN"),]
 dr_totals_only
 ```
