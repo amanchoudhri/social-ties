@@ -433,8 +433,13 @@ pct_bar_plot_base <- function(
 ```
 
 ```{r}
-pct_bar_plot('collapsed_pid', 'taxwealth')
+pct_bar_plot('collapsed_pid')
 ```
+
+```{r}
+
+```
+
 
 Also, since we'll be using these parameters over and over again, define
 a helper function so we don't have to repeat code. For more information
@@ -461,7 +466,7 @@ Start by plotting `r params$categorical_var` by a person's individual
 party ID.
 
 ```{r, pid-dot}
-dot_plot('collapsed_pid', 'taxwealth')
+dot_plot('collapsed_pid')
 ```
 
 
@@ -480,7 +485,7 @@ dot_plot('friend_group_discuss_politics')
 
 
 ```{r}
-pct_bar_plot('friend_group_discuss_politics')
+pct_bar_plot('friend_group_discuss_politics', 'collapsed_pid')
 ```
 
 ```{r}
@@ -577,9 +582,7 @@ knitr::kable(
 )
 ```
 
-```{r, pid-state-cop}
-dot_plot('collapsed_pid','state_leaning')
-```
+
 
 ```{r, pid-state-cop}
 dot_plot('state_copartisanship','collapsed_pid')
@@ -615,11 +618,6 @@ knitr::kable(
 ```
 
 Merge it into `df`.
-
-```{r}
-colnames(df)
-```
-
 
 ```{r}
 # merge these `terciles` in based on state and county name
