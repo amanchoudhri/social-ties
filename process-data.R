@@ -13,8 +13,8 @@ df <- readRDS(RAW_DATA_FILENAME)
 # PARTY ID (pid3)
 # collapse "Other" to "Independent"
 df$pid3[df$pid3 == "Other"] <- "Independent"
-# throw out people who responded "Not sure"
-df <- df[df$pid3 != "Not sure",]
+# throw out people who responded "Not sure" to `pid7`
+df <- df[df$pid7 != "Not sure",]
 # relevel the factor
 df$pid3 <- factor(df$pid3)
 df$pid3 <- fct_relevel(df$pid3, "Democrat", "Independent", "Republican")
@@ -72,6 +72,14 @@ all_r <- df$friend_group_pid5 == "Mostly Republicans" & !(df$any_friends_democra
 all_r[is.na(all_r)] <- FALSE
 df$friend_group_pid5[all_r] <- "All Republicans"
 
+# FRIEND_GROUP_PID_NUMERIC
+# -2, -1, 0, 1, 2
+# For "All Democrats", ..., "All Republicans". Where we collapse "Not sure"
+# respondents to "About evenly split".
+df <- df %>% mutate(
+  friend_group_pid_numeric = ifelse(friend_group_pid5 == "Not sure", 0, as.numeric(friend_group_pid5) - 3),
+)
+
 # COLLAPSED_PID
 # Collapse people who "lean Dem" or "lean Rep" into their respective parties
 df$collapsed_pid <- "Independent/Not sure"
@@ -114,6 +122,56 @@ df$friend_group_copartisanship <- ifelse(
 df$friend_group_copartisanship <- factor(df$friend_group_copartisanship, 
                                          levels = copartisanship_levels)
 
+# FRIEND_GROUP_COPARTISANSHIP_NUMERIC
+# -2, -1, 0, 1, 2
+# For "All Copartisan", ..., "All Counterpartisan". Where we collapse "Not sure"
+# respondents to "About evenly split".
+df <- df %>% mutate(
+  friend_group_copartisanship_numeric = ifelse(
+    friend_group_copartisanship == "Not sure", 0, as.numeric(friend_group_copartisanship) - 3
+    ),
+)
+
+# CROSS_PARTY_OPENNESS
+# Define "openness to vote cross-party" based on responses to
+# whether Democrats would 1) consider voting for Trump, or 2) consider voting
+# for any Republican at all over Biden. Similar for Republicans voting for Biden
+# or voting for any Democrat at all over Trump.
+openness <- df %>% mutate(
+    consider_other_candidate = ifelse(
+      collapsed_pid == "Independent/Not sure",
+      NA,
+      ifelse(
+        collapsed_pid == "Democrat",
+        consider_trump,
+        consider_biden
+      )
+    ),
+    consider_other_party_candidate = ifelse(
+      collapsed_pid == "Independent/Not sure",
+      NA,
+      ifelse(
+        collapsed_pid == "Democrat",
+        consider_any_republican,
+        consider_any_democrat
+      )
+    )
+  ) %>%
+      mutate(
+        openness = case_when(
+          is.na(consider_other_candidate) | is.na(consider_other_party_candidate) ~ NA,
+          as.numeric(consider_other_candidate) == 1 ~ "Very open",
+          consider_other_party_candidate == 1 ~ "Somewhat open",
+          .default="Not open"
+        )
+      ) %>%
+      pull(openness)
+
+df$cross_party_openness <- factor(
+  openness,
+  levels=c("Not open", "Somewhat open", "Very open"),
+  ordered=TRUE
+  )
 
 # COUNTY_LEANING
 zip_to_county_raw <- read.csv('dat/zip_to_county.csv')
@@ -132,7 +190,7 @@ df <- df %>%
     zipcode = zip_to_char(zipcode),
     state_lower = tolower(inputstate)
     ) %>%
-  left_join(zip_to_county %>% select(zipcode, state_lower, county), by=c('state_lower'='state_lower', 'zipcode'='zipcode'))
+  left_join(zip_to_county %>% dplyr::select(zipcode, state_lower, county), by=c('state_lower'='state_lower', 'zipcode'='zipcode'))
 
 
 # ---- SAVE DF ----
