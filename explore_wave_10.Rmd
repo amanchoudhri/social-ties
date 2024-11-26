@@ -1,0 +1,23 @@
+---
+title: "explore_wave_10"
+output: html_document
+date: "2024-11-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+waves <- c(6,10)
+data_filenames <- c()
+for (wave in waves) {
+  data_filenames <- c(data_filenames, paste0('dat/wave', wave, '/processed_wave_', wave, '.rds'))
+}
+dfs <- lapply(data_filenames, readRDS)
+```
+
+```{r}
+dfs %>%
+```
+
