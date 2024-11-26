@@ -1,12 +1,38 @@
 library(dplyr)
 library(forcats)
+library(haven)
+library(ggplot2)
 
 setwd("C:/Users/jared/Desktop/Jared/social-ties")
 
 RAW_DATA_FILENAME <- 'dat/RAW.rds'
 
+RAW_DATA_FILENAME2 <- 'wave2/dat/2024-10-09-week-37-group-1-wave-10.sav'
+
 # LOAD DATA
 df <- readRDS(RAW_DATA_FILENAME)
+
+df2 <- read_sav(RAW_DATA_FILENAME2)
+
+View(df2)
+
+glimpse(df2)
+sink("output.txt")
+print(colnames(df2))
+sink()
+
+df %>% count(pid7)
+
+df2 %>% count(pid7)
+
+ggplot(df, aes(pid7)) + geom_bar()
+
+glimpse(df)
+
+ggplot() + 
+  geom_bar(data=df, aes(age4), fill='lightblue', alpha=.5) + 
+  geom_bar(data=df2, aes(age4), fill='blue', alpha=.2) + 
+  theme_minimal()
 
 # ----- CLEAN/PROCESS VARIABLES -----
 
