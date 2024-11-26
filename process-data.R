@@ -5,8 +5,6 @@ library(haven)
 library(ggplot2)
 library(stringr)
 
-setwd("C:/Users/Jared/Desktop/Columbia 2024 (3rd)/Gelman Lab/social-ties")
-
 # ----- LOAD DATA -----
 
 waves <- c(6,10)
@@ -73,19 +71,30 @@ clean <- function(df) {
     mutate(friend_group_pid5 = case_when(replace_na(friend_group_pid3 == "Mostly Democrats" & !(any_friends_republicans == "Yes"), FALSE) ~ "All Democrats",
                                          replace_na(friend_group_pid3 == "Mostly Republicans" & !(any_friends_democrats == "Yes"), FALSE) ~ "All Republicans",
                                          TRUE ~ friend_group_pid3) %>% 
-             factor(levels = c("All Democrats","Mostly Democrats","About evenly split","Mostly Republicans","All Republicans","Not sure")),
+             fct_relevel("All Democrats","Mostly Democrats","About evenly split","Mostly Republicans","All Republicans","Not sure"),
            # FRIEND_GROUP_PID_NUMERIC
            # -2, -1, 0, 1, 2
            # For "All Democrats", ..., "All Republicans". Where we collapse "Not sure"
            # respondents to "About evenly split".
            friend_group_pid_numeric = if_else(friend_group_pid5 == "Not sure", 
                                               0, 
-                                              as.numeric(friend_group_pid5) - 3),
+                                              (as.numeric(friend_group_pid5) - 3))/2,
            collapsed_pid = case_when(
              as.numeric(pid7) < 4 ~ "Democrat",
              as.numeric(pid7) > 4 & pid7 != "Not sure" ~ "Republican",
              TRUE ~ "Independent/Not sure"
              ) %>% fct_relevel("Democrat", "Independent/Not sure", "Republican"),
+           collapsed_pid_numeric = if_else(collapsed_pid == "Independent/Not sure", 
+                                           0, 
+                                           as.numeric(collapsed_pid) - 2),
+           collapsed_pid_baseline = case_when(
+             as.numeric(pid7_baseline) < 4 ~ "Democrat",
+             as.numeric(pid7_baseline) > 4 & pid7 != "Not sure" ~ "Republican",
+             TRUE ~ "Independent/Not sure"
+           ) %>% fct_relevel("Democrat", "Independent/Not sure", "Republican"),
+           collapsed_pid_baseline_numeric = if_else(collapsed_pid_baseline == "Independent/Not sure", 
+                                           0, 
+                                           as.numeric(collapsed_pid_baseline) - 2),
            friend_group_copartisanship = if_else(collapsed_pid == "Independent/Not sure", 
                                                  NA, 
                                                  if_else(collapsed_pid == "Democrat",
@@ -104,14 +113,32 @@ clean_wave_6 <- function(df) {
                         "Friends slightly wealthier" = "Slightly wealthier",
                         "Friends the same" = "The same",
                         "Friends slightly poorer" = "Slightly poorer",
-                        "Friends much poorer" = "Much poorer"))
+                        "Friends much poorer" = "Much poorer"),
+           friend_group_presvote24 = case_when(
+             friend_group_presvote24 == "Mostly Joe Biden" ~ "Democrat",
+             friend_group_presvote24 == "Mostly Donald Trump" ~ "Republican",
+             TRUE ~ "Other/Not Sure") %>% fct_relevel("Democrat", "Other/Not Sure", "Republican"),
+           friend_group_presvote24_numeric = if_else(friend_group_presvote24 == "Other/Not sure", 
+                                                     0, 
+                                                     as.numeric(friend_group_presvote24) - 2))
 }
 
-clean(dfs[[1]])
+clean_wave_10 <- function(df) {
+  df %>%
+    mutate(friend_group_presvote24h = case_when(
+      friend_group_presvote24h == "Mostly Kamala Harris" ~ "Democrat",
+      friend_group_presvote24h == "Mostly Donald Trump" ~ "Republican",
+      TRUE ~ "Other/Not Sure") %>% fct_relevel("Democrat", "Other/Not Sure", "Republican"),
+      friend_group_presvote24_numeric = if_else(friend_group_presvote24h == "Other/Not sure", 
+                                                0, 
+                                                as.numeric(friend_group_presvote24h) - 2))
+}
+
+clean(dfs[[1]])$friend_group_presvote24
 
 processed_dfs <- lapply(dfs, clean)
 processed_df1 <- clean_wave_6(processed_dfs[[1]])
-processed_df2 <- processed_dfs[[2]]
+processed_df2 <- clean_wave_10(processed_dfs[[2]])
 
 processed_df2 %>% dplyr::select(contains('friend'))
 

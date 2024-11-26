@@ -9,6 +9,13 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+library(tidyr)
+library(dplyr)
+library(forcats)
+library(haven)
+library(ggplot2)
+library(stringr)
+
 waves <- c(6,10)
 data_filenames <- c()
 for (wave in waves) {
@@ -18,6 +25,27 @@ dfs <- lapply(data_filenames, readRDS)
 ```
 
 ```{r}
-dfs %>%
+df2 %>% dplyr::select(contains('vote'))
+unique(df2$friend_group_presvote24)
+```
+
+
+```{r}
+df1 <- dfs[[1]]
+df2 <- dfs[[2]]
+
+#df1 %>% dplyr::select(contains('friend'))
+df1 %>% dplyr::select(contains('pid'))
+#unique(df1$collapsed_pid)
+```
+```{r}
+df2 %>% dplyr::select(contains('friend'))
+```
+
+```{r}
+# df1$collapsed_pid
+# df2$collapsed_pid
+# df1$friend_group_pid_numeric
+# df2$friend_group_pid_numeric
 ```
 
