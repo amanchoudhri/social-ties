@@ -1,0 +1,81 @@
+---
+title: "testing"
+output: html_document
+date: "2024-10-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+make_dot_plot <- function(
+    data,
+    categorical_plot_var,
+    categorical_plot_var_name,
+    group_var1,
+    group_var2 = NULL
+    ) {
+  # Ensure categorical_plot_var is a string
+  categorical_plot_var <- as.character(categorical_plot_var)
+  
+  # Drop rows where categorical_plot_var is null
+  data <- data[!is.na(df[categorical_plot_var]),]
+  
+  five_level_partisan_colors <- c("blue", "lightblue", "purple", "pink", "red", "grey")
+  five_level_nonpartisan_colors <- c('#ffffcc','#a1dab4','#41b6c4','#2c7fb8','#253494', "grey")
+  
+  color_palettes <- list(
+    friend_group_pid3 = c("blue", "purple", "red", "grey"),
+    friend_group_pid5 = five_level_partisan_colors,
+    friend_group_copartisanship = five_level_nonpartisan_colors,
+    # colors created using ColorBrewer 2.0
+    # https://colorbrewer2.org/?type=sequential&scheme=YlGnBu&n=5
+    friend_group_class = five_level_nonpartisan_colors
+  )
+  
+  # Select the appropriate color palette
+  if (!categorical_plot_var %in% names(color_palettes)) {
+    stop(paste("No color palette defined for", categorical_plot_var))
+  }
+  colors <- color_palettes[[categorical_plot_var]]
+  
+  # Create the grouping expression
+  if (is.null(group_var2)) {
+    group_vars <- c(as.character(group_var1))
+    facet_formula <- as.formula(paste("~", quo_name(group_var1)))
+  }
+  
+  # Prepare the data
+  plot_data <- data %>%
+    group_by(across(all_of(c(group_vars, categorical_plot_var)))) %>%
+    summarise(count = n(), .groups = "drop_last") %>%
+    mutate(proportion = count / sum(count))
+  
+  # Create the plot
+  p <- ggplot(plot_data, aes(y = !!sym(categorical_plot_var), x = proportion)) +
+    geom_point(aes(color = !!sym(categorical_plot_var))) +
+    facet_grid(facet_formula) +
+    labs(
+        title = paste(
+          categorical_plot_var_name,
+          "by",
+          group_var1,
+          if(!is.null(group_var2)) paste("and", group_var2)
+          ),
+         y = categorical_plot_var_name,
+         x = "Proportion") +
+         # fill = categorical_plot_var_name) +
+    scale_x_continuous(labels = scales::percent_format()) +
+    scale_y_discrete(limits = rev(levels(plot_data[[categorical_plot_var]]))) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  # Add color scale if colors are provided
+  if (!missing(colors)) {
+    p <- p + scale_fill_manual(values = colors, guide="none")
+  }
+  
+  return(p)
+}
+```
