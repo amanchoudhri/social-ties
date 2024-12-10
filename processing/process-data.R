@@ -4,7 +4,9 @@ library(forcats)
 library(haven)
 library(ggplot2)
 library(stringr)
+library(here)
 
+setwd(here::here())
 
 # ----- LOAD DATA -----
 
@@ -85,21 +87,9 @@ rep_levels <- c(rev(friend_group_partisan_levels), "Not sure")
 dem_map <- setNames(copartisanship_levels, dem_levels)
 rep_map <- setNames(copartisanship_levels, rep_levels)
 
-as.numeric(dfs[[1]]$pid7)
-
-dfs[[1]]$pid7
-
 # Survey Cleaning Function -----
 
 clean_survey <- function(df) {
-  
-  cols_to_check <- intersect(colnames(df),
-                             c("presvote24", 
-                               "presvote24h", 
-                               "friend_group_presvote24", 
-                               "friend_group_presvote24h",
-                               "best_friend_presvote24",
-                               "presvote24post"))
   
   df %>%
     rename(urbanicity = urbancity) %>% # Rename column urbancity to urbanicity
@@ -189,110 +179,110 @@ clean_survey <- function(df) {
       friend_group_copartisanship_numeric = if_else(
         friend_group_copartisanship == "Not sure", 
         0, 
-        as.numeric(friend_group_copartisanship) - 3)) %>%
-    
-    print_shape() %>%
-    
-    drop_na(all_of(cols_to_check)) %>% 
-    
-    print_shape() %>%
-    
-    mutate(
-      presvote24 = if ("presvote24h" %in% colnames(.)) {
-        case_when(
-          presvote24h == "Kamala Harris" ~ "Democrat",
-          presvote24h == "Donald Trump" ~ "Republican",
-          TRUE ~ "Other")
-        } else if ("presvote24" %in% colnames(.)) {
-        case_when(
-          presvote24 == "Joe Biden" ~ "Democrat",
-          presvote24 == "Donald Trump" ~ "Republican",
-          TRUE ~ "Other")
-        } %>% fct_relevel(
-        "Democrat", 
-        "Other", 
-        "Republican"),
-      
-      presvote24 = if ("consider_harris" %in% colnames(.)) {
-        case_when(
-          presvote24 == "Other" & consider_harris == "I would consider voting for Kamala Harris" & consider_trump == "I would consider voting for Donald Trump" ~ "Other",
-          presvote24 == "Other" & consider_harris == "I would consider voting for Kamala Harris" ~ "Democrat",
-          presvote24 == "Other" & consider_trump == "I would consider voting for Donald Trump" ~ "Republican",
-          TRUE ~ "Other")
-      } else if ("consider_biden" %in% colnames(.)) {
-        case_when(
-          presvote24 == "Other" & consider_biden == "I would consider voting for Joe Biden" & consider_trump == "I would consider voting for Donald Trump" ~ "Other",
-          presvote24 == "Other" & consider_biden == "I would consider voting for Joe Biden" ~ "Democrat",
-          presvote24 == "Other" & consider_trump == "I would consider voting for Donald Trump" ~ "Republican",
-          TRUE ~ "Other")},
-
-      friend_group_presvote24 = if ("friend_group_presvote24h" %in% colnames(.)) {
-        case_when(
-          friend_group_presvote24h == "Kamala Harris" ~ "Democrat",
-          friend_group_presvote24h == "Donald Trump" ~ "Republican",
-          TRUE ~ "About evenly split")
-        } else if ("friend_group_presvote24" %in% colnames(.)) {
-        case_when(
-          friend_group_presvote24 == "Joe Biden" ~ "Democrat",
-          friend_group_presvote24 == "Donald Trump" ~ "Republican",
-          TRUE ~ "About evenly split")
-        } %>% fct_relevel(
-        "Democrat",
-        "About evenly split",
-        "Republican"),
-
-      best_friend_presvote24 = if ("best_friend_presvote24" %in% colnames(.)) {
-        case_when(
-          best_friend_presvote24 == "Joe Biden" ~ "Democrat",
-          best_friend_presvote24 == "Donald Trump" ~ "Republican",
-          TRUE ~ "Other")
-        } %>% fct_relevel(
-          "Democrat",
-          "Other",
-          "Republican"),
-
-      presvote24post = if ("presvote24post" %in% colnames(.)) {
-        case_when(
-          presvote24post == "Kamala Harris" ~ "Democrat",
-          presvote24post == "Donald Trump" ~ "Republican",
-          TRUE ~ "Other")
-        } %>% fct_relevel(
-          "Democrat",
-          "Other",
-          "Republican"),
-
-      presvote24_numeric = as.numeric(presvote24) - 2,
-      friend_group_presvote24_numeric = as.numeric(friend_group_presvote24) -2,
+        as.numeric(friend_group_copartisanship) - 3),
       
       zipcode = zip_to_char(zipcode),
+      state_lower = tolower(inputstate)
       
-      state_lower = tolower(inputstate)) %>%
+    ) %>%
     
-    left_join(zip_to_county %>% dplyr::select(zipcode, state_lower, county), by=c('state_lower'='state_lower', 'zipcode'='zipcode'))
+    left_join(zip_to_county %>% dplyr::select(zipcode, state_lower, county), 
+              by = c('state_lower' = 'state_lower', 'zipcode' = 'zipcode'))
+  
 }
 
 clean_wave_6 <- function(df) {
   df %>%
+    print_shape() %>%
+    
+    drop_na(presvote24, friend_group_presvote24) %>%
+    
+    print_shape() %>%
+    
     mutate(friend_group_class = friend_group_class %>% 
              fct_recode("Friends much wealthier" = "Much wealthier",
                         "Friends slightly wealthier" = "Slightly wealthier",
                         "Friends the same" = "The same",
                         "Friends slightly poorer" = "Slightly poorer",
-                        "Friends much poorer" = "Much poorer"))
+                        "Friends much poorer" = "Much poorer"),
+           
+           presvote24 = case_when(
+               presvote24 == "Joe Biden" ~ "Democrat",
+               presvote24 == "Donald Trump" ~ "Republican",
+               TRUE ~ "Other"
+             ) %>% fct_relevel("Democrat", "Other", "Republican"),
+           
+           presvote24 = case_when(
+               presvote24 == "Other" & consider_biden == "I would consider voting for Joe Biden" & consider_trump == "I would consider voting for Donald Trump" ~ "Other",
+               presvote24 == "Other" & consider_biden == "I would consider voting for Joe Biden" ~ "Democrat",
+               presvote24 == "Other" & consider_trump == "I would consider voting for Donald Trump" ~ "Republican",
+               TRUE ~ presvote24
+             ),
+             
+           friend_group_presvote24 = case_when(
+               friend_group_presvote24 == "Mostly Joe Biden" ~ "Democrat",
+               friend_group_presvote24 == "Mostly Donald Trump" ~ "Republican",
+               TRUE ~ "About evenly split"
+             ) %>% fct_relevel("Democrat", "About evenly split", "Republican"),
+
+           best_friend_presvote24 = case_when(
+               best_friend_presvote24 == "Joe Biden" ~ "Democrat",
+               best_friend_presvote24 == "Donald Trump" ~ "Republican",
+               TRUE ~ "Other"
+             ) %>% fct_relevel("Democrat", "Other", "Republican"),
+           
+           presvote24_numeric = as.numeric(as.factor(presvote24)) - 2,
+           friend_group_presvote24_numeric = as.numeric(as.factor(friend_group_presvote24)) - 2
+          )
 }
 
 clean_wave_10 <- function(df) {
-  df
+  df %>%
+    print_shape() %>%
+    
+    drop_na(presvote24h, friend_group_presvote24h) %>% 
+    
+    print_shape() %>%
+    
+    mutate(
+      presvote24h = case_when(
+          presvote24h == "Kamala Harris" ~ "Democrat",
+          presvote24h == "Donald Trump" ~ "Republican",
+          TRUE ~ "Other"
+        ) %>% fct_relevel("Democrat", "Other", "Republican"),
+      
+      presvote24h = case_when(
+          presvote24h == "Other" & consider_harris == "I would consider voting for Kamala Harris" & consider_trump == "I would consider voting for Donald Trump" ~ "Other",
+          presvote24h == "Other" & consider_harris == "I would consider voting for Kamala Harris" ~ "Democrat",
+          presvote24h == "Other" & consider_trump == "I would consider voting for Donald Trump" ~ "Republican",
+          TRUE ~ presvote24h
+        ) %>% fct_relevel("Democrat", "Other", "Republican"),
+
+      friend_group_presvote24h = case_when(
+          friend_group_presvote24h == "Mostly Kamala Harris" ~ "Democrat",
+          friend_group_presvote24h == "Mostly Donald Trump" ~ "Republican",
+          TRUE ~ "About evenly split"
+        ) %>% fct_relevel("Democrat", "About evenly split", "Republican"),
+
+      presvote24post = case_when(
+          presvote24post == "Kamala Harris" ~ "Democrat",
+          presvote24post == "Donald Trump" ~ "Republican",
+          TRUE ~ "Other"
+        ) %>% fct_relevel("Democrat", "Other", "Republican"),
+      
+      presvote24h_numeric = as.numeric(as.factor(presvote24h)) - 2,
+      friend_group_presvote24h_numeric = as.numeric(as.factor(friend_group_presvote24h)) - 2)
+  
 }
 
-dfs[[2]]$friend_group_presvote24
 
 zip_to_county <- clean_zips(zip_to_county_raw)
 processed_dfs <- lapply(dfs, clean_survey)
 processed_df1 <- clean_wave_6(processed_dfs[[1]])
-processed_df2 <- processed_dfs[[2]]
+processed_df2 <- clean_wave_10(processed_dfs[[2]])
 
-processed_df2 %>% dplyr::select(contains('friend'))
+# processed_df1$presvote24_numeric
+# processed_df2$presvote24h_numeric
 
 # 
 # further_collapsed_pid = if_else(
