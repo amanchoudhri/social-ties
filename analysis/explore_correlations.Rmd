@@ -50,11 +50,6 @@ In this notebook, we explore the covariate ``r params$categorical_var``.
 Load the YouGov survey data (pre-processed by `process-data.R`).
 
 ```{r}
-setwd("C:/Users/jared/Desktop/Jared/social-ties")
-```
-
-
-```{r}
 CLEANED_DATA_FILENAME <- 'dat/processed.rds'
 
 df <- readRDS(CLEANED_DATA_FILENAME)

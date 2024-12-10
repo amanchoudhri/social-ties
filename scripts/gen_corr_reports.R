@@ -1,8 +1,6 @@
 library(rmarkdown)
 library(ezknitr)
 
-setwd("C:/Users/Jared/Desktop/Columbia 2024 (3rd)/Gelman Lab/social-ties")
-
 VARS <- c(
   "friend_group_pid3" = "Friend Group Party ID",
   "friend_group_pid5" = "Friend Group Party ID",
