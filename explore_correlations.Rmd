@@ -7,7 +7,7 @@ params:
   cat_var_display_name:
     value: 'Friend Group Copartisanship'
   img_dir:
-    value: 'img/friend_group_pid5/'
+    value: 'figs/friend_group_pid5/'
   base_dir:
     value: '/Users/amanchoudhri/aman/penumbra/notebooks/'
   output_mode:
@@ -36,7 +36,7 @@ if (params$output_mode == 'github') {
 }
 ```
 
-```{r libraries, echo=F, message=FALSE}
+```{r libraries, echo=T, message=FALSE}
 library(dplyr)
 library(ggplot2)
 library(stringr)
@@ -175,6 +175,7 @@ bar_plot_base <- function(
   
   five_level_partisan_colors <- c("blue", "lightblue", "purple", "pink", "red", "grey")
   five_level_nonpartisan_colors <- c('#ffffcc','#a1dab4','#41b6c4','#2c7fb8','#253494', "grey")
+  three_level_nonpartisan_colors <- c('#bcbddc', '#756bb1', '#956bb1')
   
   color_palettes <- list(
     friend_group_pid3 = c("blue", "purple", "red", "grey"),
@@ -182,7 +183,8 @@ bar_plot_base <- function(
     friend_group_copartisanship = five_level_nonpartisan_colors,
     # colors created using ColorBrewer 2.0
     # https://colorbrewer2.org/?type=sequential&scheme=YlGnBu&n=5
-    friend_group_class = five_level_nonpartisan_colors
+    friend_group_class = five_level_nonpartisan_colors,
+    cross_party_openness = three_level_nonpartisan_colors
   )
   
   # Select the appropriate color palette
@@ -433,9 +435,6 @@ dot_plot('collapsed_pid', 'urbanicity')
 ```
 
 ## Appendix
-
-```{r, libraries, eval=F}
-```
 
 ```{r, make-plot, eval=F}
 ```

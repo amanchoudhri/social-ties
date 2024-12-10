@@ -3,6 +3,12 @@ Explore Friend Group Class
 Aman Choudhri
 2024-09-09
 
+``` r
+library(dplyr)
+library(ggplot2)
+library(stringr)
+```
+
 In this notebook, we explore the covariate `friend_group_class`.
 
 ## Setup
@@ -272,12 +278,6 @@ dot_plot('collapsed_pid', 'urbanicity')
 ![](figs/examine_friend_group_class/pid-urbanicity-1.png)<!-- -->
 
 ## Appendix
-
-``` r
-library(dplyr)
-library(ggplot2)
-library(stringr)
-```
 
 ``` r
 bar_plot_base <- function(

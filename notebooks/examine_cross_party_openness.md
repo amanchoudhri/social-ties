@@ -1,4 +1,4 @@
-Explore Friend Group Party ID
+Explore Openness to Voting Cross-Party for President
 ================
 Aman Choudhri
 2024-09-09
@@ -9,7 +9,7 @@ library(ggplot2)
 library(stringr)
 ```
 
-In this notebook, we explore the covariate `friend_group_pid5`.
+In this notebook, we explore the covariate `cross_party_openness`.
 
 ## Setup
 
@@ -48,13 +48,14 @@ bar_plot <- function (group_var1, group_var2=NULL) {
 
 ## Personal Party ID
 
-Start by plotting friend_group_pid5 by a person’s individual party ID.
+Start by plotting cross_party_openness by a person’s individual party
+ID.
 
 ``` r
 dot_plot('collapsed_pid')
 ```
 
-![](figs/examine_friend_group_pid5/pid-dot-1.png)<!-- -->
+![](figs/examine_cross_party_openness/pid-dot-1.png)<!-- -->
 
 Also display in bar plot format, since that can be more legible for some
 outcome measures.
@@ -63,7 +64,7 @@ outcome measures.
 bar_plot('collapsed_pid')
 ```
 
-![](figs/examine_friend_group_pid5/pid-bar-1.png)<!-- -->
+![](figs/examine_cross_party_openness/pid-bar-1.png)<!-- -->
 
 ## Self-Reported Social Class
 
@@ -71,7 +72,7 @@ bar_plot('collapsed_pid')
 dot_plot('social_class')
 ```
 
-![](figs/examine_friend_group_pid5/social-class-1.png)<!-- -->
+![](figs/examine_cross_party_openness/social-class-1.png)<!-- -->
 
 ## By State Partisan Leaning
 
@@ -111,7 +112,7 @@ leaning.
 dot_plot('collapsed_pid', 'state_leaning')
 ```
 
-![](figs/examine_friend_group_pid5/pid-state-1.png)<!-- -->
+![](figs/examine_cross_party_openness/pid-state-1.png)<!-- -->
 
 To facilitate comparison between Democrats in blue states and
 Republicans in red states, we’ll also create a new column indicating
@@ -149,7 +150,7 @@ knitr::kable(
 dot_plot('collapsed_pid', 'state_copartisanship')
 ```
 
-![](figs/examine_friend_group_pid5/pid-state-cop-1.png)<!-- -->
+![](figs/examine_cross_party_openness/pid-state-cop-1.png)<!-- -->
 
 ## By County Partisan Leaning
 
@@ -221,7 +222,7 @@ Now plot it.
 dot_plot('collapsed_pid', 'county_leaning')
 ```
 
-![](figs/examine_friend_group_pid5/pid-county-1.png)<!-- -->
+![](figs/examine_cross_party_openness/pid-county-1.png)<!-- -->
 
 Similarly, we now create a new covariate indicating the
 “co-partisanship” of a county, just like above with states.
@@ -255,7 +256,7 @@ knitr::kable(
 dot_plot('collapsed_pid', 'county_copartisanship')
 ```
 
-![](figs/examine_friend_group_pid5/pid-county-cop-1.png)<!-- -->
+![](figs/examine_cross_party_openness/pid-county-cop-1.png)<!-- -->
 
 ## By Urbanicity
 
@@ -267,7 +268,7 @@ analyze it here.
 bar_plot('urbanicity')
 ```
 
-![](figs/examine_friend_group_pid5/urbanicity-bar-1.png)<!-- -->
+![](figs/examine_cross_party_openness/urbanicity-bar-1.png)<!-- -->
 
 Let’s interact personal PID and urbanicity.
 
@@ -275,7 +276,7 @@ Let’s interact personal PID and urbanicity.
 dot_plot('collapsed_pid', 'urbanicity')
 ```
 
-![](figs/examine_friend_group_pid5/pid-urbanicity-1.png)<!-- -->
+![](figs/examine_cross_party_openness/pid-urbanicity-1.png)<!-- -->
 
 ## Appendix
 
@@ -295,6 +296,7 @@ bar_plot_base <- function(
   
   five_level_partisan_colors <- c("blue", "lightblue", "purple", "pink", "red", "grey")
   five_level_nonpartisan_colors <- c('#ffffcc','#a1dab4','#41b6c4','#2c7fb8','#253494', "grey")
+  three_level_nonpartisan_colors <- c('#efedf5', '#bcbddc', '#756bb1')
   
   color_palettes <- list(
     friend_group_pid3 = c("blue", "purple", "red", "grey"),
@@ -302,7 +304,8 @@ bar_plot_base <- function(
     friend_group_copartisanship = five_level_nonpartisan_colors,
     # colors created using ColorBrewer 2.0
     # https://colorbrewer2.org/?type=sequential&scheme=YlGnBu&n=5
-    friend_group_class = five_level_nonpartisan_colors
+    friend_group_class = five_level_nonpartisan_colors,
+    cross_party_openness = three_level_nonpartisan_colors
   )
   
   # Select the appropriate color palette
