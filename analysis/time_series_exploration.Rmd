@@ -1,0 +1,78 @@
+---
+title: "time_series_exploration"
+author: "Jared Winslow"
+date: "2024-11-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(forcats)
+library(haven)
+library(ggplot2)
+library(ggthemes)
+library(stringr)
+
+waves <- c(6,10)
+data_filenames <- c()
+for (wave in waves) {
+  data_filenames <- c(data_filenames, paste0('dat/wave', wave, '/processed_wave_', wave, '.rds'))
+}
+dfs <- lapply(data_filenames, readRDS)
+
+df1 <- dfs[[1]]
+df2 <- dfs[[2]]
+```
+
+```{r}
+plot_ts <- function(col1, col2, title, ylab) {
+
+   if (is.character(col1)) {
+     labels = c('2022-11-01', '2024-06-01', '2024-10-01')
+   }
+  else {
+    labels = c(NA, '2024-06-01', '2024-10-01')
+  }
+                  
+  breaks = as.Date(labels)
+
+  ts <- data.frame(index=c(breaks),
+                   mean=c(ifelse(is.character(col1), mean(df1[[col1]]), NA), 
+                           mean(df1[[col2]]), 
+                           mean(df2[[col2]])),
+                   se=c(ifelse(is.character(col1), sd(df1[[col1]])/sqrt(length(df1[[col1]])), NA), 
+                        sd(df1[[col2]])/sqrt(length(df1[[col2]])),
+                        sd(df2[[col2]])/sqrt(length(df2[[col2]])))) %>% drop_na()
+  
+  ggplot(ts, aes(index, mean)) + 
+    geom_point(size=2) + 
+    geom_errorbar(aes(ymax = mean + se, ymin = mean - se, alpha=.6, width=0), color="darkorange2", size=1.25) + 
+    geom_errorbar(aes(ymax = mean + 2*se, ymin = mean - 2*se, alpha=.6, width=0), color="darkorange", size=.75) + 
+    scale_x_date(breaks = breaks, labels = labels) + 
+    ylim(c(-0.075, 0.075)) + 
+    xlab('Date') +
+    ylab(ylab) +
+    labs(title=title) + 
+    guides(alpha = "none", size = "none") +
+    geom_hline(yintercept=0, linetype="dashed", color = "black") + 
+    theme_hc()
+  
+}
+```
+
+```{r}
+plot_ts('collapsed_pid_baseline_numeric', 'collapsed_pid_numeric', 'Mean Party ID, -1 Democrat to 1 Republican', 'Mean Party ID, -1 to 1')
+```
+
+```{r}
+plot_ts(0, 'friend_group_pid_numeric', 'Friend Group', 'Friend Group')
+```
+
+```{r}
+plot_ts(0, 'friend_group_presvote24_numeric', 'Friend Pres Vote', 'Friend Pres Vote')
+```
