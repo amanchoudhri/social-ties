@@ -1,0 +1,243 @@
+---
+title: "neighbor-polling-2"
+author: "Jared Winslow"
+date: "2024-12-10"
+output: html_document
+---
+
+# Neighbor Polling Exploration
+
+
+```{r, echo=T, message=FALSE}
+library(dplyr)
+library(here)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(here::here())
+```
+
+```{r}
+# notebook-level config parameters
+# whether averages should
+# be calculated using survey weights or not
+use_weights <- TRUE
+```
+
+```{r}
+# load in the wave 10 dataframe
+df <- readRDS('dat/wave6/processed_wave_6.rds')
+
+if (!use_weights) {
+  df$weight <- 1
+}
+```
+
+## "Friend Group" Polling
+
+### Exploratory Analysis
+```{r}
+politics_counts <- table(df$friend_group_discuss_politics)
+table(df$friend_group_discuss_politics, df$friend_group_pid5)
+```
+
+### Missing Data Plan
+
+Throw out 1. people who don't respond to `friend_group_presvote24`, 2.
+those who report not planning on voting.
+
+### Experiment 1: Estimating Friend Group Polling Adjustment
+
+To estimate the "popular vote" going to Trump under friend group polling, we'll
+take advantage of the `friend_group_presvote24` variable, which asked:
+
+> Who do you think most of your friends will vote for in the presidential election
+> in November?
+
+With answer choices of:
+
+ * Mostly Kamala Harris
+ * About evenly split
+ * Mostly Donald Trump
+ * Mostly would not vote
+ * Mostly another candidate
+ * Not sure
+
+For this analysis, we'll discard everyone who thinks their friends
+won't vote, will vote third party, or aren't sure.
+
+```{r}
+knitr::kable(
+  table(df$friend_group_presvote24),
+  col.names=c("Friend Group Vote Estimate", "Count")
+  )
+```
+
+
+```{r}
+include <- !is.na(df$friend_group_presvote24) & (
+  df$friend_group_presvote24 == "Mostly Democrat" |
+  df$friend_group_presvote24 == "About evenly split" |
+  df$friend_group_presvote24 == "Mostly Republican"
+)
+
+print(paste('This excludes', sum(1 - include, na.rm=T), 'people.'))
+```
+
+Let's code friend group presidential vote by considering a "Mostly" response
+to mean 75%. We can ablate on this later.
+
+```{r}
+mostly_meaning <- 0.75
+
+codebook <- c(
+  "Mostly Democrat" = 1 - mostly_meaning,
+  "About evenly split" = 0.5,
+  "Mostly Republican" = mostly_meaning
+)
+
+df$friend_group_presvote24_coded <- codebook[df$friend_group_presvote24]
+
+knitr::kable(
+  table(df$friend_group_presvote24_coded),
+  col.names=c("Estimated Friends Voteshare for Trump", "Count")
+  )
+```
+
+
+Now just compute the difference between the average friend group polling result
+and the average standard polling result. To compute the standard polling result,
+we'll similarly include only individuals report planning to vote either for
+Harris or Trump.
+
+```{r}
+standard_estimate <- df %>%
+  
+  mutate(coded_vote = (presvote24 == "Republican")) %>%
+  summarise(est=mean(coded_vote * weight)) %>%
+  pull(est)
+
+friend_group_estimate <- mean(df$friend_group_presvote24_coded * df$weight)
+
+display_digits <- 4
+print(paste(
+  "Result with standard polling:",
+  round(standard_estimate, display_digits)
+  ))
+print(paste(
+  "Result with friend group polling:",
+  round(friend_group_estimate, display_digits)
+  ))
+```
+
+Now we calculate the standard errors of the estimates.
+
+```{r}
+library(Hmisc)
+
+df <- df %>%
+  mutate(coded_vote = (presvote24 == "Republican"))
+  
+individual_se <- sqrt(wtd.var(df$coded_vote, df$weight) / sum(df$weight))
+
+friend_se <- sqrt(
+  wtd.var(df$friend_group_presvote24_coded, df$weight)
+  / sum(df$weight)
+  )
+
+print(paste(
+  "SE of standard polling:",
+  round(individual_se, display_digits)
+  ))
+print(paste(
+  "SE of friend group polling:",
+  round(friend_se, display_digits)
+  ))
+```
+
+### Experiment 1.5: Subset of Respondents
+Since we calculate the `individual` estimate and the `friend_group` estimates
+from different subsets, we don't have a way to estimate the standard error of
+the difference between the two estimates.
+
+In this section, we'll recalculate the estimates from the same subset of
+respondents: major-party voters who report their friends as mostly major-party
+voters.
+
+Now let's renormalize the survey weights.
+```{r}
+df$weight <- df$weight / mean(df$weight)
+```
+
+```{r}
+subset_individual_estimate <- df %>%
+  mutate(coded_vote = (presvote24 == "Republican")) %>%
+  summarise(est=mean(coded_vote * weight)) %>%
+  pull(est)
+
+subset_friend_estimate <- mean(
+  df$friend_group_presvote24_coded *
+  df$weight
+  )
+
+cat(
+  "Subset estimates ----",
+  "Results without subsetting in parenthesis.",
+  paste0(
+    "\nStandard polling: ",
+    round(subset_individual_estimate, display_digits)
+    #,
+    # " (",
+    # round(standard_estimate, display_digits),
+    # ")"
+  ),
+  paste0(
+    "\nFriend group polling: ",
+    round(subset_friend_estimate, display_digits)
+    #,
+    #" (", round(friend_group_estimate, display_digits), ")"
+  ),
+  paste(
+    "\nSubset difference in standard polling:",
+    round(subset_individual_estimate - standard_estimate, display_digits)
+  ),
+  paste(
+    "\nSubset difference in friend group polling:",
+    round(subset_friend_estimate - friend_group_estimate, display_digits)
+  ),
+  sep="\n"
+  )
+```
+
+Now we can calculate the standard error of the difference between friend group
+polling and individual polling.
+
+```{r}
+diffs <- df %>%
+  mutate(d = friend_group_presvote24_coded - coded_vote) %>%
+  pull(d)
+
+se <- sqrt(
+  wtd.var(diffs, df$weight)
+  / sum(df$weight)
+  )
+
+print(paste("SE:", round(se, display_digits)))
+```
+
+This gives the following 95% confidence interval on the difference.
+
+```{r}
+diff <- subset_friend_estimate - subset_individual_estimate
+cat(
+  round(diff, display_digits), "+/- 2se:",
+  paste0(
+    "[",
+    round(diff - (2 * se), display_digits),
+    ", ",
+    round(diff + (2 * se), display_digits),
+    "]"
+  ),
+  sep=" "
+)
+```

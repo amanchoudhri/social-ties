@@ -218,12 +218,17 @@ clean_wave_6 <- function(df) {
                presvote24 == "Other" & consider_trump == "I would consider voting for Donald Trump" ~ "Republican",
                TRUE ~ presvote24
              ),
+           
+           presvote24 = case_when(
+             presvote24 == "Other" ~ NA,
+             TRUE ~ presvote24
+           ),
              
            friend_group_presvote24 = case_when(
-               friend_group_presvote24 == "Mostly Joe Biden" ~ "Democrat",
-               friend_group_presvote24 == "Mostly Donald Trump" ~ "Republican",
+               friend_group_presvote24 == "Mostly Joe Biden" ~ "Mostly Democrat",
+               friend_group_presvote24 == "Mostly Donald Trump" ~ "Mostly Republican",
                TRUE ~ "About evenly split"
-             ) %>% fct_relevel("Democrat", "About evenly split", "Republican"),
+             ) %>% fct_relevel("Mostly Democrat", "About evenly split", "Mostly Republican"),
 
            best_friend_presvote24 = case_when(
                best_friend_presvote24 == "Joe Biden" ~ "Democrat",
@@ -232,8 +237,9 @@ clean_wave_6 <- function(df) {
              ) %>% fct_relevel("Democrat", "Other", "Republican"),
            
            presvote24_numeric = as.numeric(as.factor(presvote24)) - 2,
-           friend_group_presvote24_numeric = as.numeric(as.factor(friend_group_presvote24)) - 2
-          )
+           friend_group_presvote24_numeric = as.numeric(as.factor(friend_group_presvote24)) - 2) %>%
+    
+    drop_na(presvote24)
 }
 
 clean_wave_10 <- function(df) {
@@ -258,11 +264,16 @@ clean_wave_10 <- function(df) {
           TRUE ~ presvote24h
         ) %>% fct_relevel("Democrat", "Other", "Republican"),
 
+      presvote24h = case_when(
+        presvote24h == "Other" ~ NA,
+        TRUE ~ presvote24h
+      ),
+      
       friend_group_presvote24h = case_when(
-          friend_group_presvote24h == "Mostly Kamala Harris" ~ "Democrat",
-          friend_group_presvote24h == "Mostly Donald Trump" ~ "Republican",
+          friend_group_presvote24h == "Mostly Kamala Harris" ~ "Mostly Democrat",
+          friend_group_presvote24h == "Mostly Donald Trump" ~ "Mostly Republican",
           TRUE ~ "About evenly split"
-        ) %>% fct_relevel("Democrat", "About evenly split", "Republican"),
+        ) %>% fct_relevel("Mostly Democrat", "About evenly split", "Mostly Republican"),
 
       presvote24post = case_when(
           presvote24post == "Kamala Harris" ~ "Democrat",
@@ -271,7 +282,9 @@ clean_wave_10 <- function(df) {
         ) %>% fct_relevel("Democrat", "Other", "Republican"),
       
       presvote24h_numeric = as.numeric(as.factor(presvote24h)) - 2,
-      friend_group_presvote24h_numeric = as.numeric(as.factor(friend_group_presvote24h)) - 2)
+      friend_group_presvote24h_numeric = as.numeric(as.factor(friend_group_presvote24h)) - 2) %>%
+    
+    drop_na(presvote24h)
   
 }
 

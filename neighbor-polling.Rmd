@@ -5,21 +5,27 @@ output:
 ---
 # Neighbor Polling Exploration
 
+
+
 ```{r, echo=T, message=FALSE}
 library(dplyr)
+library(here)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(here::here())
 ```
 
 ```{r}
 # notebook-level config parameters
-
 # whether averages should
 # be calculated using survey weights or not
-use_weights <- T
+use_weights <- TRUE
 ```
 
 ```{r}
 # load in the wave 10 dataframe
-df <- readRDS('dat/wave-10/processed.rds')
+df <- readRDS('dat/wave10/processed_wave_10.rds')
 
 if (!use_weights) {
   df$weight <- 1
@@ -28,11 +34,11 @@ if (!use_weights) {
 
 ## "Friend Group" Polling
 
-<!-- ### Exploratory Analysis -->
-<!-- ```{r} -->
-<!-- politics_counts <- table(df$friend_group_discuss_politics) -->
-<!-- table(df$friend_group_discuss_politics, df$friend_group_pid5) -->
-<!-- ``` -->
+### Exploratory Analysis
+```{r}
+politics_counts <- table(df$friend_group_discuss_politics)
+table(df$friend_group_discuss_politics, df$friend_group_pid5)
+```
 
 ### Missing Data Plan
 
@@ -66,15 +72,15 @@ knitr::kable(
   )
 ```
 
+
 ```{r}
 include <- !is.na(df$friend_group_presvote24h) & (
-  df$friend_group_presvote24h == "Mostly Kamala Harris" |
+  df$friend_group_presvote24h == "Mostly Democrat" |
   df$friend_group_presvote24h == "About evenly split" |
-  df$friend_group_presvote24h == "Mostly Donald Trump"
+  df$friend_group_presvote24h == "Mostly Republican"
 )
 
 print(paste('This excludes', sum(1 - include, na.rm=T), 'people.'))
-df_ht_friends <- df[include,]
 ```
 
 Let's code friend group presidential vote by considering a "Mostly" response
@@ -82,17 +88,17 @@ to mean 75%. We can ablate on this later.
 
 ```{r}
 mostly_meaning <- 0.75
+
 codebook <- c(
-  "Mostly Kamala Harris"=1 - mostly_meaning,
-  "About evenly split"=0.5,
-  "Mostly Donald Trump"=mostly_meaning
+  "Mostly Democrat" = 1 - mostly_meaning,
+  "About evenly split" = 0.5,
+  "Mostly Republican" = mostly_meaning
 )
 
-df_ht_friends$friend_group_presvote24h_coded <- codebook[
-  df_ht_friends$friend_group_presvote24h]
+df$friend_group_presvote24h_coded <- codebook[df$friend_group_presvote24h]
 
 knitr::kable(
-  table(df_ht_friends$friend_group_presvote24h_coded),
+  table(df$friend_group_presvote24h_coded),
   col.names=c("Estimated Friends Voteshare for Trump", "Count")
   )
 ```
@@ -105,15 +111,12 @@ Harris or Trump.
 
 ```{r}
 standard_estimate <- df %>%
-  filter(presvote24h %in% c("Kamala Harris", "Donald Trump"))  %>%
-  mutate(coded_vote = (presvote24h == "Donald Trump")) %>%
+  
+  mutate(coded_vote = (presvote24h == "Republican")) %>%
   summarise(est=mean(coded_vote * weight)) %>%
   pull(est)
 
-friend_group_estimate <- mean(
-  df_ht_friends$friend_group_presvote24h_coded *
-  df_ht_friends$weight
-  )
+friend_group_estimate <- mean(df$friend_group_presvote24h_coded * df$weight)
 
 display_digits <- 4
 print(paste(
@@ -131,15 +134,14 @@ Now we calculate the standard errors of the estimates.
 ```{r}
 library(Hmisc)
 
-tmp <- df %>%
-  filter(presvote24h %in% c("Kamala Harris", "Donald Trump"))  %>%
-  mutate(coded_vote = (presvote24h == "Donald Trump"))
+df <- df %>%
+  mutate(coded_vote = (presvote24h == "Republican"))
   
-individual_se <- sqrt(wtd.var(tmp$coded_vote, tmp$weight) / sum(tmp$weight))
+individual_se <- sqrt(wtd.var(df$coded_vote, df$weight) / sum(df$weight))
 
 friend_se <- sqrt(
-  wtd.var(df_ht_friends$friend_group_presvote24h_coded, df_ht_friends$weight)
-  / sum(df_ht_friends$weight)
+  wtd.var(df$friend_group_presvote24h_coded, df$weight)
+  / sum(df$weight)
   )
 
 print(paste(
@@ -161,28 +163,20 @@ In this section, we'll recalculate the estimates from the same subset of
 respondents: major-party voters who report their friends as mostly major-party
 voters.
 
-```{r}
-major_party_df <- df_ht_friends %>%
-  filter(presvote24h %in% c("Kamala Harris", "Donald Trump")) %>%
-  mutate(coded_vote = (presvote24h == "Donald Trump"))
-
-print(paste("This leaves us with", nrow(major_party_df), "respondents"))
-```
-
 Now let's renormalize the survey weights.
 ```{r}
-major_party_df$weight <- major_party_df$weight / mean(major_party_df$weight)
+df$weight <- df$weight / mean(df$weight)
 ```
 
 ```{r}
-subset_individual_estimate <- major_party_df %>%
-  mutate(coded_vote = (presvote24h == "Donald Trump")) %>%
+subset_individual_estimate <- df %>%
+  mutate(coded_vote = (presvote24h == "Republican")) %>%
   summarise(est=mean(coded_vote * weight)) %>%
   pull(est)
 
 subset_friend_estimate <- mean(
-  major_party_df$friend_group_presvote24h_coded *
-  major_party_df$weight
+  df$friend_group_presvote24h_coded *
+  df$weight
   )
 
 cat(
@@ -190,15 +184,17 @@ cat(
   "Results without subsetting in parenthesis.",
   paste0(
     "\nStandard polling: ",
-    round(subset_individual_estimate, display_digits),
-    " (",
-    round(standard_estimate, display_digits),
-    ")"
+    round(subset_individual_estimate, display_digits)
+    #,
+    # " (",
+    # round(standard_estimate, display_digits),
+    # ")"
   ),
   paste0(
     "\nFriend group polling: ",
-    round(subset_friend_estimate, display_digits),
-    " (", round(friend_group_estimate, display_digits), ")"
+    round(subset_friend_estimate, display_digits)
+    #,
+    #" (", round(friend_group_estimate, display_digits), ")"
   ),
   paste(
     "\nSubset difference in standard polling:",
@@ -216,13 +212,13 @@ Now we can calculate the standard error of the difference between friend group
 polling and individual polling.
 
 ```{r}
-diffs <- major_party_df %>%
+diffs <- df %>%
   mutate(d = friend_group_presvote24h_coded - coded_vote) %>%
   pull(d)
 
 se <- sqrt(
-  wtd.var(diffs, major_party_df$weight)
-  / sum(major_party_df$weight)
+  wtd.var(diffs, df$weight)
+  / sum(df$weight)
   )
 
 print(paste("SE:", round(se, display_digits)))
@@ -244,7 +240,6 @@ cat(
   sep=" "
 )
 ```
-
 
 ### Experiment 2: Deviations from PID
 
@@ -273,7 +268,7 @@ codebook <- c(
   "All Republicans" = 1
   )
 
-friend_group_pid <- df_ht_friends %>%
+friend_group_pid <- df %>%
   filter(friend_group_pid5 != "Not sure") %>%
   mutate(friend_group_pid5_coded=codebook[friend_group_pid5]) %>%
   dplyr::summarize(est=mean(friend_group_pid5_coded * weight)) %>%
@@ -310,7 +305,7 @@ we use for "Mostly ...".
 ```{r}
 # get the average survey weight per response category,
 # weighted by the size of the response category
-vote_weights <- df_ht_friends %>%
+vote_weights <- df %>%
   group_by(friend_group_presvote24h) %>%
   dplyr::summarize(weight=mean(weight), n=n()) %>%
   mutate(p = n / sum(n), weight=p*weight) %>%
@@ -336,7 +331,7 @@ plot(
 ```
 
 ```{r}
-pid_weights <- df_ht_friends %>%
+pid_weights <- df %>%
   group_by(friend_group_pid5) %>%
   dplyr::summarize(weight=mean(weight), n=n()) %>%
   mutate(p = n / sum(n), weight=p*weight) %>%
@@ -383,48 +378,48 @@ in favor of Trump.
 poll_adjustments[length(poll_adjustments)]
 ```
 
-<!-- ### Experiment 4: Individual-Level Analysis -->
+### Experiment 4: Individual-Level Analysis
 
-<!-- For each person, we'll compute the following differences: -->
+For each person, we'll compute the following differences:
 
-<!-- $$ -->
-<!-- \text{pid}_\text{self} - \text{pid}_\text{friends}, \quad \text{and} \quad -->
-<!-- \text{vote}_\text{self} - \text{vote}_\text{friends}. -->
-<!-- $$ -->
+$$
+\text{pid}_\text{self} - \text{pid}_\text{friends}, \quad \text{and} \quad
+\text{vote}_\text{self} - \text{vote}_\text{friends}.
+$$
 
-<!-- Regressing these differences on each other, we can get a sense -->
-<!-- for  -->
+Regressing these differences on each other, we can get a sense
+for
 
-<!-- ## "Best Friend" Polling -->
-<!-- ### Experiment 1: Estimating Best Friend Polling Adjustment -->
-<!-- For another estimate of the "popular vote" going to Trump under neighbor -->
-<!-- polling, we'll take advantage of the `best_friend_group_presvote24` variable -->
-<!-- from wave 6, which asked: -->
+## "Best Friend" Polling
+### Experiment 1: Estimating Best Friend Polling Adjustment
+For another estimate of the "popular vote" going to Trump under neighbor
+polling, we'll take advantage of the `best_friend_group_presvote24` variable
+from wave 6, which asked:
 
-<!-- > Who do you think [your closest friend] will vote for in the presidential election in November? -->
+> Who do you think [your closest friend] will vote for in the presidential election in November?
 
-<!-- With answer choices: -->
+With answer choices:
 
-<!--  * Joe Biden -->
-<!--  * Donald Trump -->
-<!--  * Robert F. Kennedy, Jr. -->
-<!--  * Jill Stein -->
-<!--  * Cornel West -->
-<!--  * Other -->
-<!--  * Would not vote -->
-<!--  * Not sure -->
+ * Joe Biden
+ * Donald Trump
+ * Robert F. Kennedy, Jr.
+ * Jill Stein
+ * Cornel West
+ * Other
+ * Would not vote
+ * Not sure
 
-<!-- For a first analysis, we'll discard everyone who reported their best friends -->
-<!-- would vote for anyone other than Biden or Trump. -->
+For a first analysis, we'll discard everyone who reported their best friends
+would vote for anyone other than Biden or Trump.
 
-<!-- ```{r} -->
-<!-- # df <- readRDS('dat/week-6/processed.rds') -->
-<!-- # include <- ( -->
-<!-- #   df$best_friend_presvote24 == "Joe Biden" | -->
-<!-- #   df$best_friend_presvote24 == "Donald Trump" -->
-<!-- # ) -->
-<!-- # df <- df[include,] -->
-<!-- ``` -->
+```{r}
+# df <- readRDS('dat/week-6/processed.rds')
+# include <- (
+#   df$best_friend_presvote24 == "Joe Biden" |
+#   df$best_friend_presvote24 == "Donald Trump"
+# )
+# df <- df[include,]
+```
 
-<!-- From this, we can simply calculate the difference in means of reported 2024 vote -->
-<!-- among -->
+From this, we can simply calculate the difference in means of reported 2024 vote
+among
