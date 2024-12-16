@@ -1,11 +1,10 @@
 ---
-title: "neighbor-polling-2"
-author: "Jared Winslow"
-date: "2024-12-10"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
-# Neighbor Polling Exploration
+# Neighbor Polling Exploration Wave 10
 
 
 ```{r, echo=T, message=FALSE}
