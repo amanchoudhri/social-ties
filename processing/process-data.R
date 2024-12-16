@@ -333,6 +333,6 @@ cdf2 <- clean_wave_10(df2)
 # ---- SAVE DF ----
 
 
-saveRDS(processed_df1, 'dat/wave6/processed_wave_6.rds')
-saveRDS(processed_df2, 'dat/wave10/processed_wave_10.rds')
+saveRDS(cdf1, 'dat/wave6/processed_wave_6.rds')
+saveRDS(cdf2, 'dat/wave10/processed_wave_10.rds')
 
