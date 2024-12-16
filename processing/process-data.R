@@ -167,6 +167,7 @@ collapse <- function(df, col, new_col, threshold=4, middle_cat="Independent") {
     mutate(!!sym(new_col) := case_when(
       as.numeric(!!sym(col)) < threshold ~ "Democrat",
       as.numeric(!!sym(col)) > threshold ~ "Republican",
+      is.na(!!sym(col)) ~ !!(sym(col)),
       TRUE ~ middle_cat) %>% fct_relevel("Democrat", middle_cat, "Republican"))}
 
 make_pid_numeric <- function(df) {
@@ -210,6 +211,7 @@ recode_presvote <- function(df, vote_col, dem_label, rep_label, middle_cat) {
     mutate(!!sym(vote_col) := case_when(
       !!sym(vote_col) == dem_label ~ "Democrat",
       !!sym(vote_col) == rep_label ~ "Republican",
+      is.na(!!sym(vote_col)) ~ !!sym(vote_col),
       TRUE ~ middle_cat
     ) %>% fct_relevel("Democrat", middle_cat, "Republican"))}
 
@@ -256,9 +258,9 @@ clean_wave_6 <- function(df) {
     replace_na(list(urbanicity = "City")) %>% # There is 1 NA in urbancity with an urban zipcode: population 37,974 urban vs 6,230 rural (https://www.city-data.com/zips/46360.html)
     mutate(urbanicity = recode(urbanicity, "Other" = NA)) %>%  # Change "Other" to NA for plotting functions to ignore the ~8 "Other" responses
     add_counties() %>%
-    print_shape() %>%
-    drop_na(presvote24, friend_group_presvote24) %>%
-    print_shape() %>%
+    #print_shape() %>%
+    #drop_na(presvote24, friend_group_presvote24) %>%
+    #print_shape() %>%
     process_wave_6_presvote()
   }
 
@@ -267,9 +269,9 @@ clean_wave_10 <- function(df) {
     process_wave_10_pid() %>%
     #rename(urbanicity = urbancity) %>%
     add_counties() %>%
-    print_shape() %>%
-    drop_na(presvote24h, friend_group_presvote24h) %>%
-    print_shape() %>%
+    #print_shape() %>%
+    #drop_na(presvote24h, friend_group_presvote24h) %>%
+    #print_shape() %>%
     process_wave_10_presvote()
   }
 
