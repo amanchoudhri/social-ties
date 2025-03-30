@@ -221,21 +221,23 @@ make_presvote_wave_6_numeric <- function(df) {
     mutate(
       presvote24_numeric = as.numeric(presvote24) - 2,
       friend_group_presvote24_numeric = as.numeric(friend_group_presvote24) - 2,
-      best_friend_presvote24_numeric = as.numeric(best_friend_presvote24) - 2)}
+      best_friend_presvote24_numeric = as.numeric(best_friend_presvote24) - 2,
+      baseline_biden_trump = as.numeric(baseline_biden_trump) - 2)}
 
 make_presvote_wave_10_numeric <- function(df) {
   df %>%
     mutate(
       presvote24h_numeric = as.numeric(presvote24h) - 2,
       friend_group_presvote24h_numeric = as.numeric(friend_group_presvote24h) - 2,
-      presvote24post_numeric = as.numeric(presvote24post) - 2)}
+      presvote24post_numeric = as.numeric(presvote24post) - 2,
+      baseline_biden_trump = as.numeric(baseline_biden_trump) - 2)}
 
 process_wave_6_presvote <- function(df) {
   df %>%
     recode_presvote("presvote24", "Joe Biden", "Donald Trump", "Other") %>%
     recode_presvote("friend_group_presvote24", "Mostly Joe Biden", "Mostly Donald Trump", "About evenly split") %>%
     recode_presvote("best_friend_presvote24", "Joe Biden", "Donald Trump", "Other") %>%
-    #recode_presvote("baseline_biden_trump", "Joe Biden", "Donald Trump", "Other") %>%
+    recode_presvote("baseline_biden_trump", "Joe Biden", "Donald Trump", "Other") %>%
     print_count("presvote24") %>%
     use_consider_candidate("presvote24", "Joe Biden", "Donald Trump", "Other") %>%
     print_count("presvote24") %>%
@@ -246,6 +248,7 @@ process_wave_10_presvote <- function(df) {
     recode_presvote("presvote24h", "Kamala Harris", "Donald Trump", "Other") %>%
     recode_presvote("friend_group_presvote24h", "Mostly Kamala Harris", "Mostly Donald Trump", "About evenly split") %>%
     recode_presvote("presvote24post", "Kamala Harris", "Donald Trump", "Other") %>%
+    recode_presvote("baseline_biden_trump", "Joe Biden", "Donald Trump", "Other") %>%
     print_count("presvote24h") %>%
     use_consider_candidate("presvote24h", "Kamala Harris", "Donald Trump", "Other") %>%
     print_count("presvote24h") %>%
