@@ -18,7 +18,7 @@ library(arm)
 ```
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(here::here())
+knitr::opts_chunk$set(root.dir = here::here())
 ```
 
 ```{r}
@@ -135,6 +135,9 @@ result and the average standard polling result. To compute the standard
 polling result, we'll similarly include only individuals report planning
 to vote either for Harris or Trump.
 
+
+
+
 ```{r}
 df <- df %>%
   mutate(coded_vote = (presvote24h == "Republican"))
@@ -216,7 +219,10 @@ reported party ID and average estimated friend group party ID.
 ```{r}
 # for now, throw out Independent/Not sure respondents
 individual_pid <- df %>%
+  print_shape() %>%
   filter(collapsed_pid != "Independent") %>%
+  print_shape() %>%
+  mutate(weight = weight/ mean(weight)) %>%
   dplyr::summarize(est=mean((collapsed_pid == "Republican") * weight)) %>%
   pull(est)
 ```
@@ -236,7 +242,9 @@ codebook <- c(
 
 friend_group_pid <- df %>%
   filter(friend_group_pid5 != "Not sure") %>%
-  mutate(friend_group_pid5_coded=codebook[friend_group_pid5]) %>%
+  mutate(
+    weight = weight / mean(weight),
+    friend_group_pid5_coded=codebook[friend_group_pid5]) %>%
   dplyr::summarize(est=mean(friend_group_pid5_coded * weight)) %>%
   pull(est)
 ```
@@ -366,6 +374,14 @@ For this analysis, we'll encode our variables numerically on a 0-1 scale to
 stay consistent with the previous analyses.
 
 ```{r}
+df %>% dplyr::select(collapsed_pid_numeric, 
+              friend_group_pid_numeric,
+              presvote24h_numeric, 
+              friend_group_presvote24h_numeric)
+```
+
+
+```{r}
 to_zero_one <- function(var) {
   # Convert a [-1, 1] variable to [0, 1].
   return(0.5 * (1 + var))
@@ -390,6 +406,9 @@ hist(df$collapsed_pid_numeric)
 hist(df$friend_group_pid_numeric)
 hist(df$presvote24h_numeric)
 hist(df$friend_group_presvote24h_numeric)
+```
+```{r}
+mean(individual_deviations - friend_deviations)
 ```
 
 ```{r}
