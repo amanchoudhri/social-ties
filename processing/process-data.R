@@ -65,7 +65,8 @@ clean_zips <- function(zips) {
            county=county_name) %>%
     left_join(hardcoded_zips, by = c("state_lower"="state", "zipcode"="zipcode")) %>%
     mutate(county = coalesce(county.y, county.x)) %>%
-    select(state_lower, zipcode, county)}
+    dplyr::select(state_lower, zipcode, county)
+  }
 
 add_counties <- function(df) {
   df %>%
@@ -89,7 +90,7 @@ friend_group_partisan_levels <- c(
 copartisanship_levels <- c(
   "All co-partisan",
   "Mostly co-partisan",
-  "About evenly split",
+  "About evenly split", 
   "Mostly counter-partisan",
   "All counter-partisan")
 
@@ -234,6 +235,7 @@ process_wave_6_presvote <- function(df) {
     recode_presvote("presvote24", "Joe Biden", "Donald Trump", "Other") %>%
     recode_presvote("friend_group_presvote24", "Mostly Joe Biden", "Mostly Donald Trump", "About evenly split") %>%
     recode_presvote("best_friend_presvote24", "Joe Biden", "Donald Trump", "Other") %>%
+    #recode_presvote("baseline_biden_trump", "Joe Biden", "Donald Trump", "Other") %>%
     print_count("presvote24") %>%
     use_consider_candidate("presvote24", "Joe Biden", "Donald Trump", "Other") %>%
     print_count("presvote24") %>%
@@ -278,7 +280,6 @@ clean_wave_10 <- function(df) {
 
 
 # ----- RUN PROCESSING FUNCTIONS -----
-
 
 zip_to_county <- clean_zips(zip_to_county_raw)
 cdf1 <- clean_wave_6(df1)
